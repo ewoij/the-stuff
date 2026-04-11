@@ -10,7 +10,9 @@ export async function POST(request: NextRequest) {
   // Use a synchronous transaction for atomicity.
   // SQLite's single-writer model ensures no two agents grab the same task.
   const result = sqlite.transaction(() => {
-    // Find the oldest task whose latest status is TODO
+    // Find the oldest TODO task that has no unresolved dependencies.
+    // A dependency is unresolved if the depends_on task's latest status
+    // is NOT 'ARCHIVED'.
     const candidate = db
       .select({ id: tasks.id })
       .from(tasks)
@@ -29,7 +31,25 @@ export async function POST(request: NextRequest) {
       .where(
         and(
           sql`latest_status.status = 'TODO'`,
-          projectId ? eq(tasks.projectId, projectId) : undefined
+          projectId ? eq(tasks.projectId, projectId) : undefined,
+          // Exclude tasks that have any dependency whose status is not ARCHIVED
+          sql`NOT EXISTS (
+            SELECT 1 FROM task_dependencies td
+            INNER JOIN (
+              SELECT task_id, status FROM task_status
+              WHERE id IN (SELECT MAX(id) FROM task_status GROUP BY task_id)
+            ) dep_status ON td.depends_on_id = dep_status.task_id
+            WHERE td.task_id = ${tasks.id}
+            AND dep_status.status NOT IN ('ARCHIVED')
+          )`,
+          // Also exclude tasks that depend on tasks with no status at all
+          sql`NOT EXISTS (
+            SELECT 1 FROM task_dependencies td
+            WHERE td.task_id = ${tasks.id}
+            AND NOT EXISTS (
+              SELECT 1 FROM task_status WHERE task_id = td.depends_on_id
+            )
+          )`
         )
       )
       .orderBy(tasks.sortOrder, tasks.createdAt)

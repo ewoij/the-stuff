@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, taskStatus, agents } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { tasks, taskStatus, agents, taskDependencies } from "@/lib/db/schema";
+import { eq, desc, sql } from "drizzle-orm";
 import { latestStatusSubquery, getNextSortOrder } from "@/lib/db/queries";
 
 export async function GET(
@@ -32,7 +32,40 @@ export async function GET(
     .where(eq(tasks.projectId, projectId))
     .orderBy(tasks.sortOrder, desc(tasks.createdAt));
 
-  return NextResponse.json(rows);
+  // Compute which tasks are blocked (have unresolved dependencies)
+  const blockedRows = await db
+    .select({ taskId: taskDependencies.taskId })
+    .from(taskDependencies)
+    .innerJoin(
+      sql`(
+        SELECT task_id, status FROM task_status
+        WHERE id IN (SELECT MAX(id) FROM task_status GROUP BY task_id)
+      ) AS dep_status`,
+      sql`${taskDependencies.dependsOnId} = dep_status.task_id`
+    )
+    .where(sql`dep_status.status NOT IN ('ARCHIVED')`);
+
+  // Also find tasks that depend on tasks with no status
+  const blockedNoStatus = await db
+    .select({ taskId: taskDependencies.taskId })
+    .from(taskDependencies)
+    .where(
+      sql`NOT EXISTS (
+        SELECT 1 FROM task_status WHERE task_id = ${taskDependencies.dependsOnId}
+      )`
+    );
+
+  const blockedIds = new Set([
+    ...blockedRows.map((r) => r.taskId),
+    ...blockedNoStatus.map((r) => r.taskId),
+  ]);
+
+  const result = rows.map((row) => ({
+    ...row,
+    isBlocked: blockedIds.has(row.id),
+  }));
+
+  return NextResponse.json(result);
 }
 
 export async function POST(

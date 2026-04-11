@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, GitBranch, ExternalLink, Bot } from "lucide-react";
+import { MoreHorizontal, GitBranch, ExternalLink, Bot, Lock } from "lucide-react";
 import type { TaskWithStatus } from "@/lib/types";
 
 const STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
@@ -37,17 +37,21 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onStatusChange, onClick, isDragOverlay }: TaskCardProps) {
   const accent = STATUS_ACCENT[task.currentStatus ?? "DRAFT"] ?? "border-l-gray-300";
+  const blocked = task.isBlocked;
 
   return (
     <div
-      className={`group/task cursor-pointer rounded-lg border border-border/60 border-l-[3px] ${accent} bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-border ${isDragOverlay ? "shadow-xl ring-2 ring-primary/20 rotate-[2deg] scale-[1.02]" : ""}`}
+      className={`group/task cursor-pointer rounded-lg border border-border/60 border-l-[3px] ${accent} bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-border ${isDragOverlay ? "shadow-xl ring-2 ring-primary/20 rotate-[2deg] scale-[1.02]" : ""} ${blocked ? "opacity-60" : ""}`}
       onClick={onClick}
     >
       <div className="p-3 space-y-1.5">
         <div className="flex items-start justify-between gap-2">
-          <span className="text-[13px] font-medium leading-snug line-clamp-3">
-            {task.title}
-          </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {blocked && <Lock className="size-3 shrink-0 text-amber-500" />}
+            <span className="text-[13px] font-medium leading-snug line-clamp-3">
+              {task.title}
+            </span>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
