@@ -54,7 +54,7 @@ export async function GET(
     .from(tasks)
     .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
     .where(eq(tasks.parentTaskId, taskId))
-    .orderBy(tasks.sortOrder, tasks.createdAt);
+    .orderBy(tasks.sortOrder, desc(tasks.createdAt));
 
   return NextResponse.json({
     ...task,
