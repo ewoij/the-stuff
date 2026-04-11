@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Dialog,
-  DialogContent,
+  LargeDialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -50,7 +50,7 @@ export function TaskDetailDialog({
   return (
     <>
       <Dialog open={open && !editOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+        <LargeDialogContent>
           {loading || !task ? (
             <DialogHeader>
               <DialogTitle>Loading...</DialogTitle>
@@ -147,7 +147,7 @@ export function TaskDetailDialog({
               </div>
             </>
           )}
-        </DialogContent>
+        </LargeDialogContent>
       </Dialog>
 
       {task && (

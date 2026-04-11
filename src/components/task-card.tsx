@@ -1,5 +1,6 @@
 "use client";
 
+import { cva } from "class-variance-authority";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -10,6 +11,20 @@ import { Button } from "@/components/ui/button";
 import { MoreHorizontal, GitBranch, ExternalLink, Bot, Lock } from "lucide-react";
 import type { TaskWithStatus } from "@/lib/types";
 import { TASK_STATUSES, STATUS_CONFIG } from "@/lib/constants/task-statuses";
+
+const taskCardVariants = cva(
+  "group/task cursor-pointer rounded-lg border border-border/60 border-l-[3px] bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-border",
+  {
+    variants: {
+      dragOverlay: {
+        true: "shadow-xl ring-2 ring-primary/20 rotate-[2deg] scale-[1.02]",
+      },
+      blocked: {
+        true: "opacity-60",
+      },
+    },
+  }
+);
 
 interface TaskCardProps {
   task: TaskWithStatus;
@@ -24,7 +39,7 @@ export function TaskCard({ task, onStatusChange, onClick, isDragOverlay }: TaskC
 
   return (
     <div
-      className={`group/task cursor-pointer rounded-lg border border-border/60 border-l-[3px] ${accent} bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-border ${isDragOverlay ? "shadow-xl ring-2 ring-primary/20 rotate-[2deg] scale-[1.02]" : ""} ${blocked ? "opacity-60" : ""}`}
+      className={taskCardVariants({ dragOverlay: isDragOverlay, blocked, className: accent })}
       onClick={onClick}
     >
       <div className="p-3 space-y-1.5">

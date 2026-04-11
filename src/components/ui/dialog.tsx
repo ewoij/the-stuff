@@ -146,6 +146,20 @@ function DialogDescription({
   )
 }
 
+function LargeDialogContent({
+  className,
+  ...props
+}: DialogPrimitive.Popup.Props & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <DialogContent
+      className={cn("sm:max-w-2xl max-h-[85vh] flex flex-col", className)}
+      {...props}
+    />
+  )
+}
+
 export {
   Dialog,
   DialogClose,
@@ -157,4 +171,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  LargeDialogContent,
 }

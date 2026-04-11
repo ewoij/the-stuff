@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Dialog,
-  DialogContent,
+  LargeDialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -81,7 +81,7 @@ export function TaskFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+      <LargeDialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Task" : "New Task"}</DialogTitle>
         </DialogHeader>
@@ -152,7 +152,7 @@ export function TaskFormDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
+      </LargeDialogContent>
     </Dialog>
   );
 }
