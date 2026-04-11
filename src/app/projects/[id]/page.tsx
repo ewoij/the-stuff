@@ -8,12 +8,14 @@ import { TaskFormDialog } from "@/components/task-form-dialog";
 import { TaskDetailDialog } from "@/components/task-detail-dialog";
 import { Button } from "@/components/ui/button";
 import { useTasks } from "@/lib/hooks/use-tasks";
-import { Plus, Archive } from "lucide-react";
+import { useAgents } from "@/lib/hooks/use-agents";
+import { Plus, Archive, Bot } from "lucide-react";
 
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = Number(params.id);
   const { tasks, loading, refresh, reorderTasks } = useTasks(projectId);
+  const { agents } = useAgents(projectId);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [archiving, setArchiving] = useState(false);
@@ -60,6 +62,27 @@ export default function ProjectPage() {
             </Button>
           </div>
         </div>
+
+        {agents.length > 0 && (
+          <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
+            <Bot className="size-4" />
+            <span>
+              {agents.length} active agent{agents.length !== 1 ? "s" : ""}:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {agents.map((agent) => (
+                <span
+                  key={agent.id}
+                  className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-2 py-0.5 text-xs font-medium"
+                  title={agent.currentTaskId ? `Working on task #${agent.currentTaskId}` : "Idle"}
+                >
+                  <span className={`size-1.5 rounded-full ${agent.currentTaskId ? "bg-amber-400" : "bg-emerald-400"}`} />
+                  {agent.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-muted-foreground">Loading...</p>

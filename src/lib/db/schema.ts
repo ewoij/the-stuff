@@ -35,6 +35,17 @@ export const taskStatus = sqliteTable("task_status", {
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
 
+export const agents = sqliteTable("agents", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: integer("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  currentTaskId: integer("current_task_id"),
+  lastHeartbeat: text("last_heartbeat").notNull().default(sql`(current_timestamp)`),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+});
+
 export const taskComments = sqliteTable("task_comments", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   taskId: integer("task_id")
