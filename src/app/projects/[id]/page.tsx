@@ -15,17 +15,22 @@ export default function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = Number(params.id);
   const [isDragging, setIsDragging] = useState(false);
-  const { tasks, loading, refresh, reorderTasks } = useTasks(projectId, isDragging);
+  const { tasks, loading, refresh, reorderTask } = useTasks(projectId, isDragging);
   const { agents } = useAgents(projectId);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [archiving, setArchiving] = useState(false);
 
-  async function handleStatusChange(taskId: number, status: string) {
+  async function handleStatusChange(
+    taskId: number,
+    status: string,
+    previousTaskId: number | null,
+    nextTaskId: number | null
+  ) {
     await fetch(`/api/tasks/${taskId}/status`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, previousTaskId, nextTaskId }),
     });
     refresh();
   }
@@ -92,7 +97,7 @@ export default function ProjectPage() {
             tasks={tasks}
             onStatusChange={handleStatusChange}
             onTaskClick={(id) => setSelectedTaskId(id)}
-            onReorder={reorderTasks}
+            onReorder={reorderTask}
             onDragStart={() => setIsDragging(true)}
             onDragEnd={() => setIsDragging(false)}
           />

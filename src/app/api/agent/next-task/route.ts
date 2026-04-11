@@ -64,13 +64,14 @@ export async function POST(request: NextRequest) {
       .run();
 
     // Compute next sort_order for the project and update
+    const SORT_ORDER_GAP = 65536;
     const task = db.select({ projectId: tasks.projectId }).from(tasks).where(eq(tasks.id, candidate.id)).get()!;
     const maxResult = db
       .select({ maxOrder: sql<number>`COALESCE(MAX(${tasks.sortOrder}), 0)` })
       .from(tasks)
       .where(eq(tasks.projectId, task.projectId))
       .get();
-    const nextSortOrder = (maxResult?.maxOrder ?? 0) + 1;
+    const nextSortOrder = (maxResult?.maxOrder ?? 0) + SORT_ORDER_GAP;
 
     // Update the task's sortOrder and updatedAt
     db.update(tasks)
