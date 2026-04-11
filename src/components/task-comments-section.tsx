@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toaster";
 import { Markdown } from "@/components/markdown";
 import type { TaskDetail } from "@/lib/types";
 
@@ -21,21 +22,38 @@ export function TaskCommentsSection({
   async function handleAddComment() {
     if (!newComment.trim()) return;
     setSubmitting(true);
-    await fetch(`/api/tasks/${task.id}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newComment }),
-    });
-    setNewComment("");
-    setSubmitting(false);
-    refresh();
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newComment }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Failed to add comment");
+      }
+      setNewComment("");
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add comment");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleDeleteComment(commentId: number) {
-    await fetch(`/api/tasks/${task.id}/comments/${commentId}`, {
-      method: "DELETE",
-    });
-    refresh();
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/comments/${commentId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Failed to delete comment");
+      }
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete comment");
+    }
   }
 
   return (

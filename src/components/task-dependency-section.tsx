@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, X, Plus } from "lucide-react";
+import { toast } from "@/components/ui/toaster";
 import { STATUS_CONFIG } from "@/lib/constants/task-statuses";
 import type { TaskDetail, TaskWithStatus } from "@/lib/types";
 
@@ -33,7 +34,10 @@ export function TaskDependencySection({
     fetch(`/api/projects/${task.projectId}/tasks`, {
       signal: controller.signal,
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to search tasks");
+        return r.json();
+      })
       .then((allTasks: TaskWithStatus[]) => {
         const existingDepIds = new Set(
           task.dependencies.map((d) => d.dependsOnId)
@@ -49,28 +53,48 @@ export function TaskDependencySection({
           ).slice(0, 10)
         );
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          toast.error("Failed to search tasks");
+        }
+      });
     return () => controller.abort();
   }, [depSearch, task]);
 
   async function handleAddDependency(dependsOnId: number) {
-    await fetch(`/api/tasks/${task.id}/dependencies`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dependsOnId }),
-    });
-    setDepSearch("");
-    setDepSearchOpen(false);
-    refresh();
-    onChanged();
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/dependencies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dependsOnId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Failed to add dependency");
+      }
+      setDepSearch("");
+      setDepSearchOpen(false);
+      refresh();
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add dependency");
+    }
   }
 
   async function handleRemoveDependency(dependsOnId: number) {
-    await fetch(`/api/tasks/${task.id}/dependencies/${dependsOnId}`, {
-      method: "DELETE",
-    });
-    refresh();
-    onChanged();
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/dependencies/${dependsOnId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Failed to remove dependency");
+      }
+      refresh();
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove dependency");
+    }
   }
 
   return (

@@ -15,6 +15,7 @@ import { TaskDependencySection } from "@/components/task-dependency-section";
 import { TaskCommentsSection } from "@/components/task-comments-section";
 import { TaskStatusHistory } from "@/components/task-status-history";
 import { TaskSubtasksList } from "@/components/task-subtasks-list";
+import { toast } from "@/components/ui/toaster";
 import { useTask } from "@/lib/hooks/use-task";
 import { TASK_STATUSES, STATUS_CONFIG } from "@/lib/constants/task-statuses";
 import { GitBranch, ExternalLink, Pencil } from "lucide-react";
@@ -38,13 +39,21 @@ export function TaskDetailDialog({
 
   async function handleStatusChange(status: string) {
     if (!task) return;
-    await fetch(`/api/tasks/${task.id}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    refresh();
-    onChanged();
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Failed to change status");
+      }
+      refresh();
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to change status");
+    }
   }
 
   return (
