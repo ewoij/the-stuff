@@ -14,7 +14,8 @@ import { Plus, Archive, Bot } from "lucide-react";
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = Number(params.id);
-  const { tasks, loading, refresh, reorderTasks } = useTasks(projectId);
+  const [isDragging, setIsDragging] = useState(false);
+  const { tasks, loading, refresh, reorderTasks } = useTasks(projectId, isDragging);
   const { agents } = useAgents(projectId);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
@@ -92,6 +93,8 @@ export default function ProjectPage() {
             onStatusChange={handleStatusChange}
             onTaskClick={(id) => setSelectedTaskId(id)}
             onReorder={reorderTasks}
+            onDragStart={() => setIsDragging(true)}
+            onDragEnd={() => setIsDragging(false)}
           />
         )}
 

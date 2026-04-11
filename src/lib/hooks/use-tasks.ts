@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { TaskWithStatus } from "@/lib/types";
 
-export function useTasks(projectId: number) {
+export function useTasks(projectId: number, paused = false) {
   const [tasks, setTasks] = useState<TaskWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/projects/${projectId}/tasks`);
@@ -15,6 +17,10 @@ export function useTasks(projectId: number) {
 
   useEffect(() => {
     refresh();
+    const interval = setInterval(() => {
+      if (!pausedRef.current) refresh();
+    }, 10_000);
+    return () => clearInterval(interval);
   }, [refresh]);
 
   const reorderTasks = useCallback(
