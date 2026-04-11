@@ -1,27 +1,21 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback } from "react";
+import { useFetch } from "./use-fetch";
 import type { TaskWithStatus } from "@/lib/types";
 
 export function useTasks(projectId: number, paused = false) {
-  const [tasks, setTasks] = useState<TaskWithStatus[]>([]);
-  const [loading, setLoading] = useState(true);
-  const pausedRef = useRef(paused);
-  pausedRef.current = paused;
-
-  const refresh = useCallback(async () => {
-    const res = await fetch(`/api/projects/${projectId}/tasks`);
-    setTasks(await res.json());
-    setLoading(false);
-  }, [projectId]);
-
-  useEffect(() => {
-    refresh();
-    const interval = setInterval(() => {
-      if (!pausedRef.current) refresh();
-    }, 10_000);
-    return () => clearInterval(interval);
-  }, [refresh]);
+  const {
+    data: tasks,
+    loading,
+    error,
+    refresh,
+    setData: setTasks,
+  } = useFetch<TaskWithStatus[]>(
+    `/api/projects/${projectId}/tasks`,
+    [],
+    { pollInterval: 10_000, paused }
+  );
 
   const reorderTask = useCallback(
     async (
@@ -29,9 +23,10 @@ export function useTasks(projectId: number, paused = false) {
       previousTaskId: number | null,
       nextTaskId: number | null
     ) => {
-      // Optimistic: move the task between its neighbors in local state
-      const prev = tasks;
+      // Use functional update to capture the true current state for rollback
+      let rollback: TaskWithStatus[] | undefined;
       setTasks((current) => {
+        rollback = current;
         const task = current.find((t) => t.id === taskId);
         if (!task) return current;
         const without = current.filter((t) => t.id !== taskId);
@@ -66,11 +61,11 @@ export function useTasks(projectId: number, paused = false) {
         );
         if (!res.ok) throw new Error("Reorder failed");
       } catch {
-        setTasks(prev);
+        if (rollback) setTasks(rollback);
       }
     },
-    [tasks, projectId]
+    [projectId, setTasks]
   );
 
-  return { tasks, loading, refresh, reorderTask };
+  return { tasks, loading, error, refresh, reorderTask };
 }
