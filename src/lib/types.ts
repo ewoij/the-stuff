@@ -7,7 +7,7 @@ export type TaskStatus = InferSelectModel<typeof taskStatus>;
 export type TaskComment = InferSelectModel<typeof taskComments>;
 export type Agent = InferSelectModel<typeof agents>;
 
-export type TaskWithStatus = Task & { currentStatus: string | null };
+export type TaskWithStatus = Task & { currentStatus: string | null; agentName: string | null };
 export type TaskDetail = Task & {
   currentStatus: string | null;
   statusHistory: TaskStatus[];

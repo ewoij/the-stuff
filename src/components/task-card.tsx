@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, GitBranch, ExternalLink } from "lucide-react";
+import { MoreHorizontal, GitBranch, ExternalLink, Bot } from "lucide-react";
 import type { TaskWithStatus } from "@/lib/types";
 
 const STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
@@ -82,6 +82,14 @@ export function TaskCard({ task, onStatusChange, onClick, isDragOverlay }: TaskC
           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
             {task.content}
           </p>
+        )}
+        {task.agentName && (
+          <div className="flex items-center gap-1 pt-1">
+            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md px-1.5 py-0.5">
+              <Bot className="size-2.5 shrink-0" />
+              {task.agentName}
+            </span>
+          </div>
         )}
         {(task.branch || task.pr) && (
           <div className="flex flex-wrap gap-1.5 pt-1 opacity-0 group-hover/task:opacity-100 transition-opacity">

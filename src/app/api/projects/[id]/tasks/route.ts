@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, taskStatus } from "@/lib/db/schema";
+import { tasks, taskStatus, agents } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { latestStatusSubquery, getNextSortOrder } from "@/lib/db/queries";
 
@@ -24,9 +24,11 @@ export async function GET(
       createdAt: tasks.createdAt,
       updatedAt: tasks.updatedAt,
       currentStatus: latestStatusSubquery.status,
+      agentName: agents.name,
     })
     .from(tasks)
     .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
+    .leftJoin(agents, eq(tasks.id, agents.currentTaskId))
     .where(eq(tasks.projectId, projectId))
     .orderBy(tasks.sortOrder, desc(tasks.createdAt));
 
