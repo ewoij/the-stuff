@@ -22,6 +22,9 @@ MAX_TASKS=""
 POLL_INTERVAL=30
 CURRENT_TASK_ID=""
 WORKTREE_DIR=""
+AGENT_ID=""
+AGENT_NAME=""
+HEARTBEAT_PID=""
 
 # --- Argument parsing ------------------------------------------------------
 
@@ -95,7 +98,31 @@ fi
 
 # --- Cleanup trap ----------------------------------------------------------
 
+stop_heartbeat() {
+  if [[ -n "$HEARTBEAT_PID" ]]; then
+    kill "$HEARTBEAT_PID" 2>/dev/null || true
+    wait "$HEARTBEAT_PID" 2>/dev/null || true
+    HEARTBEAT_PID=""
+  fi
+}
+
+start_heartbeat() {
+  local agent_id="$1"
+  local task_id="$2"
+  stop_heartbeat
+  (
+    while true; do
+      sleep 15
+      curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
+        -H 'Content-Type: application/json' \
+        -d "{\"agentId\": $agent_id, \"taskId\": $task_id}" > /dev/null 2>&1 || true
+    done
+  ) &
+  HEARTBEAT_PID=$!
+}
+
 cleanup() {
+  stop_heartbeat
   if [[ -n "$CURRENT_TASK_ID" ]]; then
     echo ""
     echo "[worker] Releasing task #$CURRENT_TASK_ID (interrupted/crashed)..."
@@ -108,6 +135,11 @@ cleanup() {
     echo "[worker] Cleaning up worktree $WORKTREE_DIR..."
     git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
     WORKTREE_DIR=""
+  fi
+  if [[ -n "$AGENT_ID" ]]; then
+    echo "[worker] Deregistering agent $AGENT_NAME (#$AGENT_ID)..."
+    curl -s -X DELETE "$SERVER_URL/api/agents/$AGENT_ID" > /dev/null 2>&1 || true
+    AGENT_ID=""
   fi
 }
 
@@ -126,6 +158,23 @@ slugify() {
 
 # --- Main loop -------------------------------------------------------------
 
+# --- Agent registration -------------------------------------------------------
+
+REGISTER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$SERVER_URL/api/agents/register" \
+  -H 'Content-Type: application/json' \
+  -d "{\"projectId\": $PROJECT_ID}")
+REGISTER_HTTP=$(echo "$REGISTER_RESPONSE" | tail -1)
+REGISTER_BODY=$(echo "$REGISTER_RESPONSE" | sed '$d')
+
+if [[ "$REGISTER_HTTP" != "201" ]]; then
+  echo "Error: Failed to register agent (HTTP $REGISTER_HTTP): $REGISTER_BODY"
+  exit 1
+fi
+
+AGENT_ID=$(echo "$REGISTER_BODY" | jq -r '.id')
+AGENT_NAME=$(echo "$REGISTER_BODY" | jq -r '.name')
+
+echo "[worker] Registered as $AGENT_NAME (#$AGENT_ID)"
 echo "[worker] Starting worker for project #$PROJECT_ID"
 echo "[worker] Server: $SERVER_URL"
 echo "[worker] Base branch: $BASE_BRANCH"
@@ -147,6 +196,10 @@ while true; do
   if [[ "$HTTP_CODE" == "404" ]]; then
     echo "[worker] No tasks available, checking again in ${POLL_INTERVAL}s..."
     CURRENT_TASK_ID=""
+    # Send heartbeat to keep agent alive while idle
+    curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
+      -H 'Content-Type: application/json' \
+      -d "{\"agentId\": $AGENT_ID}" > /dev/null 2>&1 || true
     sleep "$POLL_INTERVAL"
     continue
   fi
@@ -323,7 +376,13 @@ Aim for 2–4 comments over the lifetime of a task, not one per action.
 PROMPT_EOF
 )
 
-  # 5. Run Claude Code inside the worktree (with streaming status output)
+  # 5. Send heartbeat with task ID and start periodic heartbeat
+  curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
+    -H 'Content-Type: application/json' \
+    -d "{\"agentId\": $AGENT_ID, \"taskId\": $TASK_ID}" > /dev/null 2>&1 || true
+  start_heartbeat "$AGENT_ID" "$TASK_ID"
+
+  # 6. Run Claude Code inside the worktree (with streaming status output)
   set +e
   (
     cd "$WORKTREE_DIR"
@@ -349,7 +408,13 @@ PROMPT_EOF
   CLAUDE_EXIT=$?
   set -e
 
-  # 6. Check if task was completed
+  # Stop periodic heartbeat and clear current task
+  stop_heartbeat
+  curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
+    -H 'Content-Type: application/json' \
+    -d "{\"agentId\": $AGENT_ID}" > /dev/null 2>&1 || true
+
+  # 7. Check if task was completed
   STATUS=$(get_task_status "$TASK_ID")
 
   if [[ "$STATUS" == "DONE" || "$STATUS" == "ARCHIVED" ]]; then
