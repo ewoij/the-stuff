@@ -17,11 +17,10 @@ import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { KanbanColumn } from "@/components/kanban-column";
 import { TaskCard } from "@/components/task-card";
 import type { TaskWithStatus } from "@/lib/types";
-
-const STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
+import { TASK_STATUSES } from "@/lib/constants/task-statuses";
 
 function groupByStatus(tasks: TaskWithStatus[]) {
-  return STATUSES.reduce(
+  return TASK_STATUSES.reduce(
     (acc, status) => {
       acc[status] = tasks.filter((t) => t.currentStatus === status);
       return acc;
@@ -163,7 +162,7 @@ export function KanbanBoard({
 
       // Determine destination column
       let destStatus: string;
-      if (typeof over.id === "string" && STATUSES.includes(over.id as (typeof STATUSES)[number])) {
+      if (typeof over.id === "string" && TASK_STATUSES.includes(over.id as (typeof TASK_STATUSES)[number])) {
         destStatus = over.id;
       } else {
         // Check the visual columns state (updated by handleDragOver) for cross-column
@@ -219,7 +218,7 @@ export function KanbanBoard({
       onDragCancel={handleDragCancel}
     >
       <div className="flex gap-3 overflow-x-auto pb-4 h-full">
-        {STATUSES.map((status) => (
+        {TASK_STATUSES.map((status) => (
           <KanbanColumn
             key={status}
             status={status}

@@ -11,22 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SortableTaskCard } from "@/components/sortable-task-card";
 import { ChevronDown } from "lucide-react";
 import type { TaskWithStatus } from "@/lib/types";
-
-const STATUS_DOT: Record<string, string> = {
-  DRAFT: "bg-purple-400",
-  TODO: "bg-blue-400",
-  PROGRESS: "bg-amber-400",
-  DONE: "bg-emerald-400",
-  ARCHIVED: "bg-gray-400",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "Draft",
-  TODO: "To Do",
-  PROGRESS: "In Progress",
-  DONE: "Done",
-  ARCHIVED: "Archived",
-};
+import { STATUS_CONFIG } from "@/lib/constants/task-statuses";
 
 const ARCHIVED_PREVIEW_COUNT = 5;
 
@@ -57,9 +42,9 @@ export function KanbanColumn({
       className={`flex flex-col min-w-[280px] w-[280px] rounded-xl border border-border/40 transition-colors ${isOver ? "bg-muted/80 border-border" : "bg-muted/30"}`}
     >
       <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-border/30">
-        <span className={`size-2.5 rounded-full ${STATUS_DOT[status] ?? "bg-gray-400"}`} />
+        <span className={`size-2.5 rounded-full ${STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.dotColor ?? "bg-gray-400"}`} />
         <span className="text-sm font-semibold tracking-tight">
-          {STATUS_LABELS[status] ?? status}
+          {STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.label ?? status}
         </span>
         <span className="ml-auto text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5 tabular-nums">
           {tasks.length}

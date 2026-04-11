@@ -8,8 +8,7 @@ import {
   computeSortOrderBetween,
   rebalanceIfNeeded,
 } from "@/lib/db/queries";
-
-const VALID_STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
+import { TASK_STATUSES } from "@/lib/constants/task-statuses";
 
 export async function POST(
   request: NextRequest,
@@ -19,9 +18,9 @@ export async function POST(
   const taskId = Number(id);
   const body = await request.json();
 
-  if (!VALID_STATUSES.includes(body.status)) {
+  if (!TASK_STATUSES.includes(body.status)) {
     return NextResponse.json(
-      { error: `status must be one of: ${VALID_STATUSES.join(", ")}` },
+      { error: `status must be one of: ${TASK_STATUSES.join(", ")}` },
       { status: 400 }
     );
   }
