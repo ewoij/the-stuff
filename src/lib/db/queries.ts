@@ -25,6 +25,17 @@ export async function getNextSortOrder(projectId: number): Promise<number> {
   return (result?.maxOrder ?? 0) + SORT_ORDER_GAP;
 }
 
+export async function getTaskProjectIdAndNextSortOrder(taskId: number) {
+  const task = await db
+    .select({ projectId: tasks.projectId })
+    .from(tasks)
+    .where(eq(tasks.id, taskId))
+    .get();
+  if (!task) return null;
+  const sortOrder = await getNextSortOrder(task.projectId);
+  return { projectId: task.projectId, sortOrder };
+}
+
 /**
  * Compute a sort_order value between two neighbors.
  * - Both null: returns GAP (first item)
