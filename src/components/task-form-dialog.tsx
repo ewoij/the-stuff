@@ -45,7 +45,7 @@ export function TaskFormDialog({
     }
   }, [open, task]);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>, draft = false) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>, draft = true) {
     e.preventDefault();
     setSaving(true);
 
@@ -140,11 +140,11 @@ export function TaskFormDialog({
                 onClick={(e) =>
                   handleSubmit(
                     { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>,
-                    true
+                    false
                   )
                 }
               >
-                {saving ? "Saving..." : "Save as Draft"}
+                {saving ? "Saving..." : "Create as Ready"}
               </Button>
             )}
             <Button type="submit" disabled={saving}>

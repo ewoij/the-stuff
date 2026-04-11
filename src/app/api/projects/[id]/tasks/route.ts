@@ -60,8 +60,8 @@ export async function POST(
     })
     .returning();
 
-  // Insert initial status (DRAFT if draft flag is set, otherwise TODO)
-  const initialStatus = body.draft ? "DRAFT" : "TODO";
+  // Insert initial status (defaults to DRAFT)
+  const initialStatus = body.draft === false ? "TODO" : "DRAFT";
   await db.insert(taskStatus).values({
     taskId: created.id,
     status: initialStatus,

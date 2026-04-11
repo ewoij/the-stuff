@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-  const initialStatus = draft ? "DRAFT" : "TODO";
+  const initialStatus = draft === false ? "TODO" : "DRAFT";
   await db.insert(taskStatus).values({
     taskId: created.id,
     status: initialStatus,
