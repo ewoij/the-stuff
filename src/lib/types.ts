@@ -15,6 +15,19 @@ export type TaskComment = InferSelectModel<typeof taskComments>;
 export type Agent = InferSelectModel<typeof agents>;
 export type TaskDependency = InferSelectModel<typeof taskDependencies>;
 
+export type ProjectWithStats = Project & {
+  taskCounts: {
+    todo: number;
+    inProgress: number;
+    done: number;
+    draft: number;
+    archived: number;
+    total: number;
+  };
+  activeAgents: number;
+  lastActivity: string;
+};
+
 export type TaskWithStatus = Task & {
   currentStatus: string | null;
   agentName: string | null;
