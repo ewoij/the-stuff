@@ -46,6 +46,8 @@ interface KanbanBoardProps {
   onStatusChange: (taskId: number, status: string) => void;
   onTaskClick: (taskId: number) => void;
   onReorder: (status: string, orderedIds: number[]) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 export function KanbanBoard({
@@ -53,6 +55,8 @@ export function KanbanBoard({
   onStatusChange,
   onTaskClick,
   onReorder,
+  onDragStart: onDragStartProp,
+  onDragEnd: onDragEndProp,
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [columns, setColumns] = useState<Record<string, TaskWithStatus[]>>(
@@ -85,8 +89,9 @@ export function KanbanBoard({
       setActiveId(taskId);
       const task = tasks.find((t) => t.id === taskId);
       dragSourceStatus.current = task?.currentStatus ?? null;
+      onDragStartProp?.();
     },
-    [tasks]
+    [tasks, onDragStartProp]
   );
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -128,6 +133,7 @@ export function KanbanBoard({
     (event: DragEndEvent) => {
       const { active, over } = event;
       setActiveId(null);
+      onDragEndProp?.();
 
       if (!over) return;
 
@@ -165,12 +171,13 @@ export function KanbanBoard({
         onStatusChange(Number(active.id), destStatus);
       }
     },
-    [tasks, onReorder, onStatusChange]
+    [tasks, onReorder, onStatusChange, onDragEndProp]
   );
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
-  }, []);
+    onDragEndProp?.();
+  }, [onDragEndProp]);
 
   return (
     <DndContext
