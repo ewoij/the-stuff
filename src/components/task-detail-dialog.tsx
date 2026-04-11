@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,19 +26,19 @@ const STATUS_COLORS: Record<string, string> = {
   ARCHIVED: "bg-gray-100 text-gray-600",
 };
 
-interface TaskDetailSheetProps {
+interface TaskDetailDialogProps {
   taskId: number | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged: () => void;
 }
 
-export function TaskDetailSheet({
+export function TaskDetailDialog({
   taskId,
   open,
   onOpenChange,
   onChanged,
-}: TaskDetailSheetProps) {
+}: TaskDetailDialogProps) {
   const { task, loading, refresh } = useTask(open ? taskId : null);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -77,17 +77,17 @@ export function TaskDetailSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
         {loading || !task ? (
-          <SheetHeader>
-            <SheetTitle>Loading...</SheetTitle>
-          </SheetHeader>
+          <DialogHeader>
+            <DialogTitle>Loading...</DialogTitle>
+          </DialogHeader>
         ) : (
           <>
-            <SheetHeader>
+            <DialogHeader>
               <div className="flex items-center justify-between gap-2 pr-8">
-                <SheetTitle>{task.title}</SheetTitle>
+                <DialogTitle>{task.title}</DialogTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -104,9 +104,9 @@ export function TaskDetailSheet({
                   {task.currentStatus}
                 </Badge>
               </div>
-            </SheetHeader>
+            </DialogHeader>
 
-            <div className="px-4 space-y-6 pb-8">
+            <div className="space-y-6 pb-2 overflow-y-auto">
               {/* Description */}
               {task.content && (
                 <Markdown content={task.content} />
@@ -252,7 +252,7 @@ export function TaskDetailSheet({
             </div>
           </>
         )}
-      </SheetContent>
+      </DialogContent>
 
       {task && (
         <TaskFormDialog
@@ -266,6 +266,6 @@ export function TaskDetailSheet({
           }}
         />
       )}
-    </Sheet>
+    </Dialog>
   );
 }
