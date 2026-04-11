@@ -1,6 +1,27 @@
 # The Stuff
 
-Task manager with a Kanban board UI and a REST API for Claude Code autonomous agents. Organize work into projects with tasks tracked through TODO, PROGRESS, DONE, and ARCHIVED statuses. Supports subtasks, Markdown content and comments, git branch/PR references, and concurrent agent workers.
+A task manager for agent swarms. Kanban board for humans, REST API for Claude Code agents.
+
+![The Stuff — Kanban board with active agents](public/screenshot.png)
+
+## Why "The Stuff"
+
+I always have a project called "stuff" where I dump the tasks I need to do. I wanted something like that, but where a swarm of Claude Code agents could pick up tasks and implement them autonomously. I could have learned an existing framework, but I'm lazy, building it is more fun, and the result fits exactly how I work.
+
+This is a toy project for local development. If you need something production-grade for agent orchestration, more serious tools exist. This one is just for me — and now you, if you want it.
+
+## How it works
+
+```mermaid
+graph LR
+    A["Create tasks\n(Claude + skill)"] --> B["Move to TODO"]
+    B --> C["Workers pick them up"]
+    C --> D["Git worktree\n+ branch"]
+    D --> E["Claude Code\nimplements"]
+    E --> F["PR created"]
+```
+
+You create tasks using Claude Code with the included skill. Move them to TODO when they're ready. Worker agents poll for tasks, spin up isolated git worktrees, implement the work, and open PRs. You review and merge.
 
 ## Prerequisites
 
@@ -14,27 +35,40 @@ Task manager with a Kanban board UI and a REST API for Claude Code autonomous ag
 ```bash
 git clone <repo-url> && cd the-stuff
 npm install
-npm run db:push   # create the SQLite database and apply the schema
+npm run db:push   # create the SQLite database
 npm run dev       # start the dev server at http://localhost:3000
 ```
 
-The database is stored at `./data/the-stuff.db` (auto-created on first run). No environment variables are required for local development — see `.env.example` for optional configuration.
+The database is stored at `./data/the-stuff.db` (auto-created on first run). No environment variables needed — see `.env.example` for optional config.
 
-## Running the worker
+## Install the skill
 
-The worker picks up TODO tasks, creates a git worktree for each one, and spawns Claude Code to implement them autonomously.
+The repo ships a Claude Code skill that lets Claude manage tasks and projects via the API. To use it from any project:
 
 ```bash
-# Add the bin directory to your PATH
+mkdir -p ~/.claude/skills
+ln -s "$PWD/.claude/skills/the-stuff" ~/.claude/skills/the-stuff
+```
+
+Once linked, you can ask Claude to create tasks, list projects, update statuses — all through natural language.
+
+## Create and dispatch tasks
+
+Ask Claude to create tasks in your project (or use the Kanban board at localhost:3000). Tasks start as drafts. When you're ready to dispatch work, move them to **TODO** — that's the signal for workers to pick them up.
+
+## Spawn workers
+
+```bash
 export PATH="$PWD/bin:$PATH"
-
-# Run the worker (interactive project selection)
 the-stuff-worker
+```
 
-# Or specify a project ID directly
-the-stuff-worker <project-id>
+It'll prompt you to pick a project, then start polling for TODO tasks. Run as many workers as you want in parallel — each task gets its own git worktree.
 
-# All options
+<details>
+<summary>Advanced options</summary>
+
+```bash
 the-stuff-worker <project-id> \
   --server http://localhost:3000 \
   --base-branch main \
@@ -42,53 +76,14 @@ the-stuff-worker <project-id> \
   --poll-interval 30
 ```
 
-You can also set `THE_STUFF_URL` to point the worker at a different server:
+Or set `THE_STUFF_URL` to point at a different server:
 
 ```bash
 THE_STUFF_URL=http://my-server:3000 the-stuff-worker 1
 ```
 
-Multiple workers can run in parallel — each task gets its own git worktree.
+</details>
 
-## Claude Code skill
+## What happens next
 
-The repo includes a Claude Code skill at `.claude/skills/the-stuff/SKILL.md` that lets Claude manage tasks and projects via the API. To install it for use outside this repo:
-
-```bash
-# Symlink from the repo into your global skills directory
-mkdir -p ~/.claude/skills
-ln -s "$PWD/.claude/skills/the-stuff" ~/.claude/skills/the-stuff
-```
-
-After linking, Claude Code will automatically pick up the skill in any project.
-
-## Database commands
-
-```bash
-npm run db:push      # apply schema changes to the database
-npm run db:studio    # open Drizzle Studio (database browser)
-```
-
-Schema lives in `src/lib/db/schema.ts`. After any schema change, run `npm run db:push`.
-
-## API
-
-### Web UI routes
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET/POST | `/api/projects` | List / create projects |
-| GET/PUT/DELETE | `/api/projects/[id]` | Project CRUD |
-| GET/POST | `/api/projects/[id]/tasks` | List / create tasks |
-| GET/PUT/DELETE | `/api/tasks/[id]` | Task CRUD |
-| POST | `/api/tasks/[id]/status` | Update task status |
-| GET/POST | `/api/tasks/[id]/comments` | Task comments |
-
-### Agent routes
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/agent/next-task` | Fetch next TODO task (atomic) |
-| POST | `/api/agent/create-task` | Create a new task |
-| POST | `/api/agent/complete-task` | Mark task as DONE |
-| POST | `/api/agent/release-task` | Reset task back to TODO |
+Workers grab TODO tasks, create branches, run Claude Code to implement them, and open PRs. The task moves to DONE, the PR shows up on the board. You review, merge, repeat.
