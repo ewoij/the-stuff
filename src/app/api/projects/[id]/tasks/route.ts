@@ -60,11 +60,12 @@ export async function POST(
     })
     .returning();
 
-  // Insert initial TODO status
+  // Insert initial status (DRAFT if draft flag is set, otherwise TODO)
+  const initialStatus = body.draft ? "DRAFT" : "TODO";
   await db.insert(taskStatus).values({
     taskId: created.id,
-    status: "TODO",
+    status: initialStatus,
   });
 
-  return NextResponse.json({ ...created, currentStatus: "TODO" }, { status: 201 });
+  return NextResponse.json({ ...created, currentStatus: initialStatus }, { status: 201 });
 }

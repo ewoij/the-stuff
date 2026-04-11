@@ -17,7 +17,7 @@ import { KanbanColumn } from "@/components/kanban-column";
 import { TaskCard } from "@/components/task-card";
 import type { TaskWithStatus } from "@/lib/types";
 
-const STATUSES = ["TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
+const STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
 
 interface KanbanBoardProps {
   tasks: TaskWithStatus[];

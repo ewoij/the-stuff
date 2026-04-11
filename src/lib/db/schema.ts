@@ -30,7 +30,7 @@ export const taskStatus = sqliteTable("task_status", {
     .notNull()
     .references(() => tasks.id, { onDelete: "cascade" }),
   status: text("status", {
-    enum: ["TODO", "PROGRESS", "DONE", "ARCHIVED"],
+    enum: ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"],
   }).notNull(),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
