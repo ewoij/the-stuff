@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, taskStatus, taskComments, taskDependencies } from "@/lib/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
-import { getCurrentStatus, latestStatusSubquery } from "@/lib/db/queries";
+import { tasks } from "@/lib/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { getTaskDetail } from "@/lib/db/queries";
 import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function GET(
@@ -13,86 +13,11 @@ export async function GET(
   const taskId = parseId(id);
   if (!taskId) return jsonError("Invalid task ID", 400);
 
-  const task = await db
-    .select()
-    .from(tasks)
-    .where(eq(tasks.id, taskId))
-    .get();
-
-  if (!task) {
+  const detail = await getTaskDetail(taskId);
+  if (!detail) {
     return jsonError("Task not found", 404);
   }
-
-  const currentStatus = await getCurrentStatus(taskId);
-
-  const statusHistory = await db
-    .select()
-    .from(taskStatus)
-    .where(eq(taskStatus.taskId, taskId))
-    .orderBy(desc(taskStatus.createdAt));
-
-  const comments = await db
-    .select()
-    .from(taskComments)
-    .where(eq(taskComments.taskId, taskId))
-    .orderBy(taskComments.createdAt);
-
-  // Get subtasks with their current status
-  const subtasks = await db
-    .select({
-      id: tasks.id,
-      projectId: tasks.projectId,
-      parentTaskId: tasks.parentTaskId,
-      branch: tasks.branch,
-      pr: tasks.pr,
-      title: tasks.title,
-      content: tasks.content,
-      sortOrder: tasks.sortOrder,
-      createdAt: tasks.createdAt,
-      updatedAt: tasks.updatedAt,
-      currentStatus: latestStatusSubquery.status,
-    })
-    .from(tasks)
-    .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
-    .where(eq(tasks.parentTaskId, taskId))
-    .orderBy(tasks.sortOrder, desc(tasks.createdAt));
-
-  // Get dependencies (tasks this task depends on)
-  const depRows = await db
-    .select({
-      id: taskDependencies.id,
-      taskId: taskDependencies.taskId,
-      dependsOnId: taskDependencies.dependsOnId,
-      dependsOnTitle: tasks.title,
-      dependsOnStatus: latestStatusSubquery.status,
-    })
-    .from(taskDependencies)
-    .innerJoin(tasks, eq(taskDependencies.dependsOnId, tasks.id))
-    .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
-    .where(eq(taskDependencies.taskId, taskId));
-
-  // Get dependents (tasks that depend on this task)
-  const depOfRows = await db
-    .select({
-      taskId: taskDependencies.taskId,
-      taskTitle: sql<string>`dep_task.title`,
-    })
-    .from(taskDependencies)
-    .innerJoin(
-      sql`tasks as dep_task`,
-      sql`${taskDependencies.taskId} = dep_task.id`
-    )
-    .where(eq(taskDependencies.dependsOnId, taskId));
-
-  return jsonOk({
-    ...task,
-    currentStatus,
-    statusHistory,
-    comments,
-    subtasks,
-    dependencies: depRows,
-    dependents: depOfRows,
-  });
+  return jsonOk(detail);
 }
 
 export async function PUT(

@@ -1,6 +1,14 @@
 import { db } from ".";
-import { tasks, taskStatus } from "./schema";
+import {
+  tasks,
+  taskStatus,
+  taskComments,
+  taskDependencies,
+  agents,
+} from "./schema";
 import { eq, desc, sql, and } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
+import type { TaskDetail, TaskWithStatus } from "../types";
 
 /** Gap between sort_order values. Large enough to allow many insertions before rebalancing. */
 export const SORT_ORDER_GAP = 65536;
@@ -147,3 +155,154 @@ export const latestStatusSubquery = db
   .from(taskStatus)
   .groupBy(taskStatus.taskId)
   .as("latest_status");
+
+/**
+ * Returns the set of task IDs that are blocked by unresolved dependencies.
+ * A task is blocked if any dependency has a non-ARCHIVED status or no status at all.
+ */
+export async function getBlockedTaskIds(): Promise<Set<number>> {
+  const blockedRows = await db
+    .select({ taskId: taskDependencies.taskId })
+    .from(taskDependencies)
+    .innerJoin(
+      sql`(
+        SELECT task_id, status FROM task_status
+        WHERE id IN (SELECT MAX(id) FROM task_status GROUP BY task_id)
+      ) AS dep_status`,
+      sql`${taskDependencies.dependsOnId} = dep_status.task_id`
+    )
+    .where(sql`dep_status.status NOT IN ('ARCHIVED')`);
+
+  const blockedNoStatus = await db
+    .select({ taskId: taskDependencies.taskId })
+    .from(taskDependencies)
+    .where(
+      sql`NOT EXISTS (
+        SELECT 1 FROM task_status WHERE task_id = ${taskDependencies.dependsOnId}
+      )`
+    );
+
+  return new Set([
+    ...blockedRows.map((r) => r.taskId),
+    ...blockedNoStatus.map((r) => r.taskId),
+  ]);
+}
+
+/**
+ * Returns all tasks for a project with their current status, agent name, and blocked flag.
+ */
+export async function getProjectTasksWithStatus(
+  projectId: number
+): Promise<TaskWithStatus[]> {
+  const rows = await db
+    .select({
+      id: tasks.id,
+      projectId: tasks.projectId,
+      parentTaskId: tasks.parentTaskId,
+      branch: tasks.branch,
+      pr: tasks.pr,
+      title: tasks.title,
+      content: tasks.content,
+      sortOrder: tasks.sortOrder,
+      createdAt: tasks.createdAt,
+      updatedAt: tasks.updatedAt,
+      currentStatus: latestStatusSubquery.status,
+      agentName: agents.name,
+    })
+    .from(tasks)
+    .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
+    .leftJoin(agents, eq(tasks.id, agents.currentTaskId))
+    .where(eq(tasks.projectId, projectId))
+    .orderBy(tasks.sortOrder, desc(tasks.createdAt));
+
+  const blockedIds = await getBlockedTaskIds();
+
+  return rows.map((row) => ({
+    ...row,
+    isBlocked: blockedIds.has(row.id),
+  }));
+}
+
+/**
+ * Returns the full task detail (with status history, comments, subtasks,
+ * dependencies, and dependents) or null if the task doesn't exist.
+ */
+export async function getTaskDetail(
+  taskId: number
+): Promise<TaskDetail | null> {
+  const task = await db
+    .select()
+    .from(tasks)
+    .where(eq(tasks.id, taskId))
+    .get();
+
+  if (!task) return null;
+
+  const currentStatus = await getCurrentStatus(taskId);
+
+  const statusHistory = await db
+    .select()
+    .from(taskStatus)
+    .where(eq(taskStatus.taskId, taskId))
+    .orderBy(desc(taskStatus.createdAt));
+
+  const comments = await db
+    .select()
+    .from(taskComments)
+    .where(eq(taskComments.taskId, taskId))
+    .orderBy(taskComments.createdAt);
+
+  const subtasks = await db
+    .select({
+      id: tasks.id,
+      projectId: tasks.projectId,
+      parentTaskId: tasks.parentTaskId,
+      branch: tasks.branch,
+      pr: tasks.pr,
+      title: tasks.title,
+      content: tasks.content,
+      sortOrder: tasks.sortOrder,
+      createdAt: tasks.createdAt,
+      updatedAt: tasks.updatedAt,
+      currentStatus: latestStatusSubquery.status,
+    })
+    .from(tasks)
+    .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
+    .where(eq(tasks.parentTaskId, taskId))
+    .orderBy(tasks.sortOrder, desc(tasks.createdAt));
+
+  // Dependencies: tasks this task depends on
+  const dependencies = await db
+    .select({
+      id: taskDependencies.id,
+      taskId: taskDependencies.taskId,
+      dependsOnId: taskDependencies.dependsOnId,
+      dependsOnTitle: tasks.title,
+      dependsOnStatus: latestStatusSubquery.status,
+    })
+    .from(taskDependencies)
+    .innerJoin(tasks, eq(taskDependencies.dependsOnId, tasks.id))
+    .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
+    .where(eq(taskDependencies.taskId, taskId));
+
+  // Dependents: tasks that depend on this task (using typed alias instead of raw SQL)
+  const depTask = alias(tasks, "dep_task");
+  const dependents = await db
+    .select({
+      taskId: taskDependencies.taskId,
+      taskTitle: depTask.title,
+    })
+    .from(taskDependencies)
+    .innerJoin(depTask, eq(taskDependencies.taskId, depTask.id))
+    .where(eq(taskDependencies.dependsOnId, taskId));
+
+  return {
+    ...task,
+    currentStatus,
+    statusHistory,
+    comments,
+    subtasks: subtasks as TaskWithStatus[],
+    dependencies,
+    dependents,
+  };
+}
