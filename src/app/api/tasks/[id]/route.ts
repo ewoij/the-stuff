@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, taskStatus, taskComments } from "@/lib/db/schema";
+import { tasks, taskStatus, taskComments, taskDependencies } from "@/lib/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
-import { getCurrentStatus } from "@/lib/db/queries";
-import { latestStatusSubquery } from "@/lib/db/queries";
+import { getCurrentStatus, latestStatusSubquery } from "@/lib/db/queries";
 
 export async function GET(
   _request: NextRequest,
@@ -56,12 +55,41 @@ export async function GET(
     .where(eq(tasks.parentTaskId, taskId))
     .orderBy(tasks.sortOrder, desc(tasks.createdAt));
 
+  // Get dependencies (tasks this task depends on)
+  const depRows = await db
+    .select({
+      id: taskDependencies.id,
+      taskId: taskDependencies.taskId,
+      dependsOnId: taskDependencies.dependsOnId,
+      dependsOnTitle: tasks.title,
+      dependsOnStatus: latestStatusSubquery.status,
+    })
+    .from(taskDependencies)
+    .innerJoin(tasks, eq(taskDependencies.dependsOnId, tasks.id))
+    .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
+    .where(eq(taskDependencies.taskId, taskId));
+
+  // Get dependents (tasks that depend on this task)
+  const depOfRows = await db
+    .select({
+      taskId: taskDependencies.taskId,
+      taskTitle: sql<string>`dep_task.title`,
+    })
+    .from(taskDependencies)
+    .innerJoin(
+      sql`tasks as dep_task`,
+      sql`${taskDependencies.taskId} = dep_task.id`
+    )
+    .where(eq(taskDependencies.dependsOnId, taskId));
+
   return NextResponse.json({
     ...task,
     currentStatus,
     statusHistory,
     comments,
     subtasks,
+    dependencies: depRows,
+    dependents: depOfRows,
   });
 }
 
