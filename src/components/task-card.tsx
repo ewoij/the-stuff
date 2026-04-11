@@ -9,24 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, GitBranch, ExternalLink, Bot, Lock } from "lucide-react";
 import type { TaskWithStatus } from "@/lib/types";
-
-const STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
-
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "Draft",
-  TODO: "To Do",
-  PROGRESS: "In Progress",
-  DONE: "Done",
-  ARCHIVED: "Archived",
-};
-
-const STATUS_ACCENT: Record<string, string> = {
-  DRAFT: "border-l-purple-400",
-  TODO: "border-l-blue-400",
-  PROGRESS: "border-l-amber-400",
-  DONE: "border-l-emerald-400",
-  ARCHIVED: "border-l-gray-300",
-};
+import { TASK_STATUSES, STATUS_CONFIG } from "@/lib/constants/task-statuses";
 
 interface TaskCardProps {
   task: TaskWithStatus;
@@ -36,7 +19,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onStatusChange, onClick, isDragOverlay }: TaskCardProps) {
-  const accent = STATUS_ACCENT[task.currentStatus ?? "DRAFT"] ?? "border-l-gray-300";
+  const accent = STATUS_CONFIG[task.currentStatus as keyof typeof STATUS_CONFIG]?.accentColor ?? STATUS_CONFIG.DRAFT.accentColor;
   const blocked = task.isBlocked;
 
   return (
@@ -66,7 +49,7 @@ export function TaskCard({ task, onStatusChange, onClick, isDragOverlay }: TaskC
               <MoreHorizontal className="size-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {STATUSES.filter((s) => s !== task.currentStatus).map(
+              {TASK_STATUSES.filter((s) => s !== task.currentStatus).map(
                 (status) => (
                   <DropdownMenuItem
                     key={status}
@@ -75,7 +58,7 @@ export function TaskCard({ task, onStatusChange, onClick, isDragOverlay }: TaskC
                       onStatusChange(task.id, status);
                     }}
                   >
-                    Move to {STATUS_LABELS[status] ?? status}
+                    Move to {STATUS_CONFIG[status].label}
                   </DropdownMenuItem>
                 )
               )}

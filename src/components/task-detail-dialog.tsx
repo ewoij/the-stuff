@@ -17,24 +17,7 @@ import { useTask } from "@/lib/hooks/use-task";
 import { GitBranch, ExternalLink, Clock, Pencil, Lock, X, Plus } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import type { TaskWithStatus } from "@/lib/types";
-
-const STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
-
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: "bg-purple-100 text-purple-700",
-  TODO: "bg-blue-100 text-blue-700",
-  PROGRESS: "bg-amber-100 text-amber-700",
-  DONE: "bg-emerald-100 text-emerald-700",
-  ARCHIVED: "bg-gray-100 text-gray-500",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "Draft",
-  TODO: "To Do",
-  PROGRESS: "In Progress",
-  DONE: "Done",
-  ARCHIVED: "Archived",
-};
+import { TASK_STATUSES, STATUS_CONFIG } from "@/lib/constants/task-statuses";
 
 interface TaskDetailDialogProps {
   taskId: number | null;
@@ -164,10 +147,10 @@ export function TaskDetailDialog({
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge
-                    className={STATUS_COLORS[task.currentStatus ?? ""] ?? ""}
+                    className={STATUS_CONFIG[task.currentStatus as keyof typeof STATUS_CONFIG]?.badgeColor ?? ""}
                     variant="secondary"
                   >
-                    {STATUS_LABELS[task.currentStatus ?? ""] ?? task.currentStatus}
+                    {STATUS_CONFIG[task.currentStatus as keyof typeof STATUS_CONFIG]?.label ?? task.currentStatus}
                   </Badge>
                 </div>
               </DialogHeader>
@@ -225,10 +208,10 @@ export function TaskDetailDialog({
                               <Badge
                                 variant="secondary"
                                 className={
-                                  STATUS_COLORS[dep.dependsOnStatus ?? ""] ?? ""
+                                  STATUS_CONFIG[dep.dependsOnStatus as keyof typeof STATUS_CONFIG]?.badgeColor ?? ""
                                 }
                               >
-                                {STATUS_LABELS[dep.dependsOnStatus ?? ""] ??
+                                {STATUS_CONFIG[dep.dependsOnStatus as keyof typeof STATUS_CONFIG]?.label ??
                                   dep.dependsOnStatus}
                               </Badge>
                             </div>
@@ -278,9 +261,9 @@ export function TaskDetailDialog({
                             </span>
                             <Badge
                               variant="secondary"
-                              className={`ml-auto shrink-0 ${STATUS_COLORS[t.currentStatus ?? ""] ?? ""}`}
+                              className={`ml-auto shrink-0 ${STATUS_CONFIG[t.currentStatus as keyof typeof STATUS_CONFIG]?.badgeColor ?? ""}`}
                             >
-                              {STATUS_LABELS[t.currentStatus ?? ""] ??
+                              {STATUS_CONFIG[t.currentStatus as keyof typeof STATUS_CONFIG]?.label ??
                                 t.currentStatus}
                             </Badge>
                           </button>
@@ -315,7 +298,7 @@ export function TaskDetailDialog({
                 <div>
                   <h3 className="text-sm font-medium mb-2">Change Status</h3>
                   <div className="flex flex-wrap gap-2">
-                    {STATUSES.filter((s) => s !== task.currentStatus).map(
+                    {TASK_STATUSES.filter((s) => s !== task.currentStatus).map(
                       (status) => (
                         <Button
                           key={status}
@@ -323,7 +306,7 @@ export function TaskDetailDialog({
                           size="sm"
                           onClick={() => handleStatusChange(status)}
                         >
-                          {STATUS_LABELS[status] ?? status}
+                          {STATUS_CONFIG[status].label}
                         </Button>
                       )
                     )}
@@ -346,10 +329,10 @@ export function TaskDetailDialog({
                           <Badge
                             variant="secondary"
                             className={
-                              STATUS_COLORS[sub.currentStatus ?? ""] ?? ""
+                              STATUS_CONFIG[sub.currentStatus as keyof typeof STATUS_CONFIG]?.badgeColor ?? ""
                             }
                           >
-                            {STATUS_LABELS[sub.currentStatus ?? ""] ?? sub.currentStatus}
+                            {STATUS_CONFIG[sub.currentStatus as keyof typeof STATUS_CONFIG]?.label ?? sub.currentStatus}
                           </Badge>
                         </div>
                       ))}
@@ -369,9 +352,9 @@ export function TaskDetailDialog({
                         <Clock className="size-3" />
                         <Badge
                           variant="secondary"
-                          className={STATUS_COLORS[entry.status] ?? ""}
+                          className={STATUS_CONFIG[entry.status as keyof typeof STATUS_CONFIG]?.badgeColor ?? ""}
                         >
-                          {STATUS_LABELS[entry.status] ?? entry.status}
+                          {STATUS_CONFIG[entry.status as keyof typeof STATUS_CONFIG]?.label ?? entry.status}
                         </Badge>
                         <span>{new Date(entry.createdAt).toLocaleString()}</span>
                       </div>

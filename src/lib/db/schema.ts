@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { TASK_STATUSES } from "@/lib/constants/task-statuses";
 
 export const projects = sqliteTable("projects", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -30,7 +31,7 @@ export const taskStatus = sqliteTable("task_status", {
     .notNull()
     .references(() => tasks.id, { onDelete: "cascade" }),
   status: text("status", {
-    enum: ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"],
+    enum: [...TASK_STATUSES],
   }).notNull(),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
