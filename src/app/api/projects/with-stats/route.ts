@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, tasks, taskStatus, agents } from "@/lib/db/schema";
 import { eq, sql, and, gt } from "drizzle-orm";
+import { latestStatusSubquery } from "@/lib/db/queries";
 
 export async function GET() {
   const allProjects = await db
@@ -18,19 +19,16 @@ export async function GET() {
       // Get task counts by current status using a subquery for latest status
       const taskCounts = await db
         .select({
-          status: taskStatus.status,
+          status: latestStatusSubquery.status,
           count: sql<number>`count(*)`,
         })
         .from(tasks)
         .innerJoin(
-          sql`(
-            SELECT task_id, status FROM task_status
-            WHERE id IN (SELECT MAX(id) FROM task_status GROUP BY task_id)
-          ) AS ls`,
-          sql`ls.task_id = ${tasks.id}`
+          latestStatusSubquery,
+          eq(tasks.id, latestStatusSubquery.taskId)
         )
         .where(eq(tasks.projectId, project.id))
-        .groupBy(sql`ls.status`);
+        .groupBy(latestStatusSubquery.status);
 
       const counts: Record<string, number> = {};
       for (const row of taskCounts) {
