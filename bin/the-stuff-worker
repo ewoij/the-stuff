@@ -9,6 +9,7 @@ set -euo pipefail
 # Options:
 #   --server URL      Server URL (default: $THE_STUFF_URL or http://localhost:3000)
 #   --base-branch BR  Branch to create worktrees from (default: main)
+#   --max-tasks N     Maximum number of tasks to process (default: unlimited)
 #
 # Environment:
 #   THE_STUFF_URL   Server URL (default: http://localhost:3000)
@@ -16,13 +17,14 @@ set -euo pipefail
 
 SERVER_URL="${THE_STUFF_URL:-http://localhost:3000}"
 BASE_BRANCH="main"
+MAX_TASKS=""
 CURRENT_TASK_ID=""
 WORKTREE_DIR=""
 
 # --- Argument parsing ------------------------------------------------------
 
 usage() {
-  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH]"
+  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH] [--max-tasks N]"
   echo ""
   echo "If project-id is omitted, you will be prompted to select a project."
   exit 1
@@ -40,6 +42,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --server) SERVER_URL="$2"; shift 2 ;;
     --base-branch) BASE_BRANCH="$2"; shift 2 ;;
+    --max-tasks) MAX_TASKS="$2"; shift 2 ;;
     --help|-h) usage ;;
     *) usage ;;
   esac
@@ -123,6 +126,7 @@ slugify() {
 echo "[worker] Starting worker for project #$PROJECT_ID"
 echo "[worker] Server: $SERVER_URL"
 echo "[worker] Base branch: $BASE_BRANCH"
+[[ -n "$MAX_TASKS" ]] && echo "[worker] Max tasks: $MAX_TASKS"
 echo ""
 
 TASK_COUNT=0
@@ -335,6 +339,14 @@ PROMPT_EOF
     echo ""
     echo "[worker] Task #$TASK_ID completed successfully."
     TASK_COUNT=$((TASK_COUNT + 1))
+    if [[ -n "$MAX_TASKS" && "$TASK_COUNT" -ge "$MAX_TASKS" ]]; then
+      echo "[worker] Reached max tasks limit ($MAX_TASKS). Completed $TASK_COUNT task(s)."
+      # Clean up worktree before exiting
+      git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
+      WORKTREE_DIR=""
+      CURRENT_TASK_ID=""
+      exit 0
+    fi
   elif [[ "$STATUS" == "TODO" ]]; then
     echo ""
     echo "[worker] Task #$TASK_ID was released by Claude."
