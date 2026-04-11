@@ -10,6 +10,7 @@ set -euo pipefail
 #   --server URL      Server URL (default: $THE_STUFF_URL or http://localhost:3000)
 #   --base-branch BR  Branch to create worktrees from (default: main)
 #   --max-tasks N     Maximum number of tasks to process (default: unlimited)
+#   --poll-interval S Seconds between polling when no tasks available (default: 30)
 #
 # Environment:
 #   THE_STUFF_URL   Server URL (default: http://localhost:3000)
@@ -18,13 +19,14 @@ set -euo pipefail
 SERVER_URL="${THE_STUFF_URL:-http://localhost:3000}"
 BASE_BRANCH="main"
 MAX_TASKS=""
+POLL_INTERVAL=30
 CURRENT_TASK_ID=""
 WORKTREE_DIR=""
 
 # --- Argument parsing ------------------------------------------------------
 
 usage() {
-  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH] [--max-tasks N]"
+  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH] [--max-tasks N] [--poll-interval SECONDS]"
   echo ""
   echo "If project-id is omitted, you will be prompted to select a project."
   exit 1
@@ -43,6 +45,7 @@ while [[ $# -gt 0 ]]; do
     --server) SERVER_URL="$2"; shift 2 ;;
     --base-branch) BASE_BRANCH="$2"; shift 2 ;;
     --max-tasks) MAX_TASKS="$2"; shift 2 ;;
+    --poll-interval) POLL_INTERVAL="$2"; shift 2 ;;
     --help|-h) usage ;;
     *) usage ;;
   esac
@@ -127,6 +130,7 @@ echo "[worker] Starting worker for project #$PROJECT_ID"
 echo "[worker] Server: $SERVER_URL"
 echo "[worker] Base branch: $BASE_BRANCH"
 [[ -n "$MAX_TASKS" ]] && echo "[worker] Max tasks: $MAX_TASKS"
+echo "[worker] Poll interval: ${POLL_INTERVAL}s"
 echo ""
 
 TASK_COUNT=0
@@ -141,9 +145,10 @@ while true; do
   BODY=$(echo "$RESPONSE" | sed '$d')
 
   if [[ "$HTTP_CODE" == "404" ]]; then
-    echo "[worker] No more tasks available. Completed $TASK_COUNT task(s)."
+    echo "[worker] No tasks available, checking again in ${POLL_INTERVAL}s..."
     CURRENT_TASK_ID=""
-    exit 0
+    sleep "$POLL_INTERVAL"
+    continue
   fi
 
   if [[ "$HTTP_CODE" != "200" ]]; then
