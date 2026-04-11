@@ -1,5 +1,6 @@
 "use client";
 
+import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -31,9 +32,12 @@ export function KanbanColumn({
   onTaskClick,
 }: KanbanColumnProps) {
   const taskIds = tasks.map((t) => t.id);
+  const { setNodeRef, isOver } = useDroppable({ id: status });
 
   return (
-    <div className="flex flex-col min-w-[280px] w-[280px] bg-muted/50 rounded-lg">
+    <div
+      className={`flex flex-col min-w-[280px] w-[280px] rounded-lg transition-colors ${isOver ? "bg-muted" : "bg-muted/50"}`}
+    >
       <div className="flex items-center gap-2 p-3 pb-2">
         <Badge className={STATUS_COLORS[status] ?? ""} variant="secondary">
           {status}
@@ -45,7 +49,7 @@ export function KanbanColumn({
           items={taskIds}
           strategy={verticalListSortingStrategy}
         >
-          <div className="flex flex-col gap-2">
+          <div ref={setNodeRef} className="flex flex-col gap-2 min-h-[40px]">
             {tasks.map((task) => (
               <SortableTaskCard
                 key={task.id}
