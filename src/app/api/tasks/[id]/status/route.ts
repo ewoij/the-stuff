@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { taskStatus } from "@/lib/db/schema";
+import { tasks, taskStatus } from "@/lib/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { getNextSortOrder } from "@/lib/db/queries";
 
 const VALID_STATUSES = ["TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
 
@@ -26,6 +28,21 @@ export async function POST(
       status: body.status,
     })
     .returning();
+
+  // Move task to bottom of destination column
+  const task = await db
+    .select({ projectId: tasks.projectId })
+    .from(tasks)
+    .where(eq(tasks.id, taskId))
+    .get();
+
+  if (task) {
+    const sortOrder = await getNextSortOrder(task.projectId);
+    await db
+      .update(tasks)
+      .set({ sortOrder, updatedAt: sql`(current_timestamp)` })
+      .where(eq(tasks.id, taskId));
+  }
 
   return NextResponse.json(created, { status: 201 });
 }

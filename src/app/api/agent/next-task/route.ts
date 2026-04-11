@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           projectId ? eq(tasks.projectId, projectId) : undefined
         )
       )
-      .orderBy(tasks.createdAt)
+      .orderBy(tasks.sortOrder, tasks.createdAt)
       .limit(1)
       .get();
 
@@ -43,9 +43,18 @@ export async function POST(request: NextRequest) {
       .values({ taskId: candidate.id, status: "PROGRESS" })
       .run();
 
-    // Update the task's updatedAt
+    // Compute next sort_order for the project and update
+    const task = db.select({ projectId: tasks.projectId }).from(tasks).where(eq(tasks.id, candidate.id)).get()!;
+    const maxResult = db
+      .select({ maxOrder: sql<number>`COALESCE(MAX(${tasks.sortOrder}), 0)` })
+      .from(tasks)
+      .where(eq(tasks.projectId, task.projectId))
+      .get();
+    const nextSortOrder = (maxResult?.maxOrder ?? 0) + 1;
+
+    // Update the task's sortOrder and updatedAt
     db.update(tasks)
-      .set({ updatedAt: sql`(current_timestamp)` })
+      .set({ sortOrder: nextSortOrder, updatedAt: sql`(current_timestamp)` })
       .where(eq(tasks.id, candidate.id))
       .run();
 

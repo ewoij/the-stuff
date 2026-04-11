@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
+import { getNextSortOrder } from "@/lib/db/queries";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -20,6 +21,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const sortOrder = await getNextSortOrder(projectId);
+
   const [created] = await db
     .insert(tasks)
     .values({
@@ -29,6 +32,7 @@ export async function POST(request: NextRequest) {
       parentTaskId: parentTaskId ?? null,
       branch: branch ?? null,
       pr: pr ?? null,
+      sortOrder,
     })
     .returning();
 
