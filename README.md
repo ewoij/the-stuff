@@ -1,14 +1,14 @@
 # The Stuff
 
-A task manager for agent swarms. Kanban board for humans, REST API for Claude Code agents.
+Distribute work to Claude agents.
 
 ![The Stuff — Kanban board with active agents](public/screenshot.png)
 
 ## Why "The Stuff"
 
-I always have a project called "stuff" where I dump the tasks I need to do. I wanted something like that, but where a swarm of Claude Code agents could pick up tasks and implement them autonomously. I could have learned an existing framework, but I'm lazy, building it is more fun, and the result fits exactly how I work.
+I always have a project called "stuff" where I dump the tasks I need to do. I wanted something similar, but where a swarm of Claude Code agents could pick up tasks and implement them autonomously. I could have learned an existing framework, but I'm lazy, building it is more fun, and the result fits exactly how I work.
 
-This is a toy project for local development. If you need something production-grade for agent orchestration, more serious tools exist. This one is just for me — and now you, if you want it.
+This is a toy project for local development. If you need something production-grade for agent orchestration, more serious tools exist.
 
 ## How it works
 
@@ -21,7 +21,9 @@ graph LR
     E --> F["PR created"]
 ```
 
-You create tasks using Claude Code with the included skill. Move them to TODO when they're ready. Worker agents poll for tasks, spin up isolated git worktrees, implement the work, and open PRs. You review and merge.
+You create tasks using Claude Code with the included skill or manually. Move them to TODO when they're ready. Worker agents poll for tasks, spin up isolated git worktrees, implement the work, and open PRs. You review and merge.
+
+You can also create research tasks where the agent will not implement anything, no PR, just plan mode and will spawn other tasks.
 
 ## Prerequisites
 
@@ -39,7 +41,7 @@ npm run db:push   # create the SQLite database
 npm run dev       # start the dev server at http://localhost:3000
 ```
 
-The database is stored at `./data/the-stuff.db` (auto-created on first run). No environment variables needed — see `.env.example` for optional config.
+The database is stored at `./data/the-stuff.db` (auto-created on first run).
 
 ## Install the skill
 
@@ -59,11 +61,11 @@ Ask Claude to create tasks in your project (or use the Kanban board at localhost
 ## Spawn workers
 
 ```bash
-export PATH="$PWD/bin:$PATH"
+export PATH="$PWD/bin:$PATH" # add to your .zshrc
 the-stuff-worker
 ```
 
-It'll prompt you to pick a project, then start polling for TODO tasks. Run as many workers as you want in parallel — each task gets its own git worktree.
+It'll prompt you to pick a project, then start polling for TODO tasks.
 
 <details>
 <summary>Advanced options</summary>
@@ -83,7 +85,3 @@ THE_STUFF_URL=http://my-server:3000 the-stuff-worker 1
 ```
 
 </details>
-
-## What happens next
-
-Workers grab TODO tasks, create branches, run Claude Code to implement them, and open PRs. The task moves to DONE, the PR shows up on the board. You review, merge, repeat.
