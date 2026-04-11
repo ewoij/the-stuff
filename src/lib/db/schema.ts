@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const projects = sqliteTable("projects", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -19,7 +19,7 @@ export const tasks = sqliteTable("tasks", {
   pr: text("pr"),
   title: text("title").notNull(),
   content: text("content"),
-  sortOrder: integer("sort_order").notNull().default(0),
+  sortOrder: real("sort_order").notNull().default(0),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
   updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
 });

@@ -41,11 +41,31 @@ function findColumnForId(
   return null;
 }
 
+/** Extract neighbor IDs for a task at a given index within a column. */
+function getNeighborIds(
+  columnTasks: TaskWithStatus[],
+  index: number
+): { previousTaskId: number | null; nextTaskId: number | null } {
+  return {
+    previousTaskId: index > 0 ? columnTasks[index - 1].id : null,
+    nextTaskId: index < columnTasks.length - 1 ? columnTasks[index + 1].id : null,
+  };
+}
+
 interface KanbanBoardProps {
   tasks: TaskWithStatus[];
-  onStatusChange: (taskId: number, status: string) => void;
+  onStatusChange: (
+    taskId: number,
+    status: string,
+    previousTaskId: number | null,
+    nextTaskId: number | null
+  ) => void;
   onTaskClick: (taskId: number) => void;
-  onReorder: (status: string, orderedIds: number[]) => void;
+  onReorder: (
+    taskId: number,
+    previousTaskId: number | null,
+    nextTaskId: number | null
+  ) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
 }
@@ -141,14 +161,15 @@ export function KanbanBoard({
       dragSourceStatus.current = null;
       if (!sourceStatus) return;
 
-      // Determine destination: check the over target in the original tasks
+      // Determine destination column
       let destStatus: string;
       if (typeof over.id === "string" && STATUSES.includes(over.id as (typeof STATUSES)[number])) {
         destStatus = over.id;
       } else {
-        const overTask = tasks.find((t) => t.id === over.id);
-        if (!overTask?.currentStatus) return;
-        destStatus = overTask.currentStatus;
+        // Check the visual columns state (updated by handleDragOver) for cross-column
+        const col = findColumnForId(columns, over.id);
+        if (!col) return;
+        destStatus = col;
       }
 
       if (sourceStatus === destStatus) {
@@ -162,16 +183,25 @@ export function KanbanBoard({
         if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
 
         const reordered = arrayMove(columnTasks, oldIndex, newIndex);
-        onReorder(
-          sourceStatus,
-          reordered.map((t) => t.id)
-        );
+        const movedIndex = reordered.findIndex((t) => t.id === active.id);
+        const neighbors = getNeighborIds(reordered, movedIndex);
+
+        onReorder(Number(active.id), neighbors.previousTaskId, neighbors.nextTaskId);
       } else {
-        // Cross-column move
-        onStatusChange(Number(active.id), destStatus);
+        // Cross-column move — use visual columns state to get exact position
+        const destTasks = columns[destStatus] ?? [];
+        const movedIndex = destTasks.findIndex((t) => t.id === Number(active.id));
+
+        if (movedIndex !== -1) {
+          const neighbors = getNeighborIds(destTasks, movedIndex);
+          onStatusChange(Number(active.id), destStatus, neighbors.previousTaskId, neighbors.nextTaskId);
+        } else {
+          // Task not found in visual state — drop at end
+          onStatusChange(Number(active.id), destStatus, null, null);
+        }
       }
     },
-    [tasks, onReorder, onStatusChange, onDragEndProp]
+    [tasks, columns, onReorder, onStatusChange, onDragEndProp]
   );
 
   const handleDragCancel = useCallback(() => {
@@ -194,7 +224,7 @@ export function KanbanBoard({
             key={status}
             status={status}
             tasks={columns[status] ?? []}
-            onStatusChange={onStatusChange}
+            onStatusChange={(taskId, s) => onStatusChange(taskId, s, null, null)}
             onTaskClick={onTaskClick}
           />
         ))}
@@ -203,7 +233,7 @@ export function KanbanBoard({
         {activeTask ? (
           <TaskCard
             task={activeTask}
-            onStatusChange={onStatusChange}
+            onStatusChange={(taskId, s) => onStatusChange(taskId, s, null, null)}
             onClick={() => {}}
             isDragOverlay
           />

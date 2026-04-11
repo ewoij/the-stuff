@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { getNextSortOrder } from "@/lib/db/queries";
+import {
+  getNextSortOrder,
+  getNeighborSortOrders,
+  computeSortOrderBetween,
+  rebalanceIfNeeded,
+} from "@/lib/db/queries";
 
 const VALID_STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
 
@@ -29,7 +34,6 @@ export async function POST(
     })
     .returning();
 
-  // Move task to bottom of destination column
   const task = await db
     .select({ projectId: tasks.projectId })
     .from(tasks)
@@ -37,11 +41,40 @@ export async function POST(
     .get();
 
   if (task) {
-    const sortOrder = await getNextSortOrder(task.projectId);
-    await db
-      .update(tasks)
-      .set({ sortOrder, updatedAt: sql`(current_timestamp)` })
-      .where(eq(tasks.id, taskId));
+    const { previousTaskId, nextTaskId } = body as {
+      previousTaskId?: number | null;
+      nextTaskId?: number | null;
+    };
+
+    let sortOrder: number;
+
+    if (previousTaskId !== undefined || nextTaskId !== undefined) {
+      // Position specified — compute midpoint between neighbors
+      const [prevSortOrder, nextSortOrder] = await getNeighborSortOrders(
+        previousTaskId,
+        nextTaskId
+      );
+      sortOrder = computeSortOrderBetween(prevSortOrder, nextSortOrder);
+
+      await db
+        .update(tasks)
+        .set({ sortOrder, updatedAt: sql`(current_timestamp)` })
+        .where(eq(tasks.id, taskId));
+
+      await rebalanceIfNeeded(
+        task.projectId,
+        body.status,
+        prevSortOrder,
+        nextSortOrder
+      );
+    } else {
+      // No position specified — append to end of column
+      sortOrder = await getNextSortOrder(task.projectId);
+      await db
+        .update(tasks)
+        .set({ sortOrder, updatedAt: sql`(current_timestamp)` })
+        .where(eq(tasks.id, taskId));
+    }
   }
 
   return NextResponse.json(created, { status: 201 });
