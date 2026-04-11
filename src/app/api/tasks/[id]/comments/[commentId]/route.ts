@@ -1,20 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { taskComments } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
-  const { commentId } = await params;
+  const { id, commentId } = await params;
+  const taskId = parseId(id);
+  if (!taskId) return jsonError("Invalid task ID", 400);
+  const cmtId = parseId(commentId);
+  if (!cmtId) return jsonError("Invalid comment ID", 400);
+
   const body = await request.json();
 
   if (!body.content) {
-    return NextResponse.json(
-      { error: "content is required" },
-      { status: 400 }
-    );
+    return jsonError("content is required", 400);
   }
 
   const [updated] = await db
@@ -23,26 +26,31 @@ export async function PUT(
       content: body.content,
       updatedAt: sql`(current_timestamp)`,
     })
-    .where(eq(taskComments.id, Number(commentId)))
+    .where(eq(taskComments.id, cmtId))
     .returning();
 
   if (!updated) {
-    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+    return jsonError("Comment not found", 404);
   }
-  return NextResponse.json(updated);
+  return jsonOk(updated);
 }
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
-  const { commentId } = await params;
+  const { id, commentId } = await params;
+  const taskId = parseId(id);
+  if (!taskId) return jsonError("Invalid task ID", 400);
+  const cmtId = parseId(commentId);
+  if (!cmtId) return jsonError("Invalid comment ID", 400);
+
   const [deleted] = await db
     .delete(taskComments)
-    .where(eq(taskComments.id, Number(commentId)))
+    .where(eq(taskComments.id, cmtId))
     .returning();
   if (!deleted) {
-    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+    return jsonError("Comment not found", 404);
   }
-  return NextResponse.json({ ok: true });
+  return jsonOk({ ok: true });
 }

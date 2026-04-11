@@ -1,29 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskDependencies } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const taskId = Number(id);
-  const body = await request.json();
-  const dependsOnId = Number(body.dependsOnId);
+  const taskId = parseId(id);
+  if (!taskId) return jsonError("Invalid task ID", 400);
 
-  if (!dependsOnId || isNaN(dependsOnId)) {
-    return NextResponse.json(
-      { error: "dependsOnId is required" },
-      { status: 400 }
-    );
+  const body = await request.json();
+  const dependsOnId = parseId(String(body.dependsOnId ?? ""));
+
+  if (!dependsOnId) {
+    return jsonError("dependsOnId is required", 400);
   }
 
   if (taskId === dependsOnId) {
-    return NextResponse.json(
-      { error: "A task cannot depend on itself" },
-      { status: 400 }
-    );
+    return jsonError("A task cannot depend on itself", 400);
   }
 
   // Verify both tasks exist
@@ -39,7 +36,7 @@ export async function POST(
     .get();
 
   if (!task || !dependsOn) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    return jsonError("Task not found", 404);
   }
 
   try {
@@ -47,16 +44,13 @@ export async function POST(
       .insert(taskDependencies)
       .values({ taskId, dependsOnId })
       .returning();
-    return NextResponse.json(created, { status: 201 });
+    return jsonOk(created, 201);
   } catch (err: unknown) {
     if (
       err instanceof Error &&
       err.message.includes("UNIQUE constraint failed")
     ) {
-      return NextResponse.json(
-        { error: "Dependency already exists" },
-        { status: 409 }
-      );
+      return jsonError("Dependency already exists", 409);
     }
     throw err;
   }

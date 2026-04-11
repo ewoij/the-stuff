@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { execFile } from "child_process";
 import { db } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
 import { eq, sql, and, ne, isNotNull } from "drizzle-orm";
 import { latestStatusSubquery, getNextSortOrder } from "@/lib/db/queries";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 function parsePrUrl(url: string) {
   const match = url.match(
@@ -34,7 +35,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const projectId = Number(id);
+  const projectId = parseId(id);
+  if (!projectId) return jsonError("Invalid project ID", 400);
 
   // Find all non-archived tasks that have a PR URL
   const rows = await db
@@ -78,5 +80,5 @@ export async function POST(
     archived.push(task.id);
   }
 
-  return NextResponse.json({ archived, count: archived.length });
+  return jsonOk({ archived, count: archived.length });
 }

@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, tasks, taskStatus, agents } from "@/lib/db/schema";
 import { eq, sql, and, gt } from "drizzle-orm";
 import { latestStatusSubquery } from "@/lib/db/queries";
+import { jsonOk } from "@/lib/api-response";
 
 export async function GET() {
   const allProjects = await db
@@ -75,5 +75,5 @@ export async function GET() {
     })
   );
 
-  return NextResponse.json(stats);
+  return jsonOk(stats);
 }

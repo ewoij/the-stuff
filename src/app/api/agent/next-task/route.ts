@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db, sqlite } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
+import { jsonError, jsonOk } from "@/lib/api-response";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -84,11 +85,8 @@ export async function POST(request: NextRequest) {
   })();
 
   if (!result) {
-    return NextResponse.json(
-      { message: "No tasks available" },
-      { status: 404 }
-    );
+    return jsonError("No tasks available", 404);
   }
 
-  return NextResponse.json({ ...result, currentStatus: "PROGRESS" });
+  return jsonOk({ ...result, currentStatus: "PROGRESS" });
 }

@@ -1,22 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const projectId = parseId(id);
+  if (!projectId) return jsonError("Invalid project ID", 400);
+
   const project = await db
     .select()
     .from(projects)
-    .where(eq(projects.id, Number(id)))
+    .where(eq(projects.id, projectId))
     .get();
   if (!project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    return jsonError("Project not found", 404);
   }
-  return NextResponse.json(project);
+  return jsonOk(project);
 }
 
 export async function PUT(
@@ -24,6 +28,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const projectId = parseId(id);
+  if (!projectId) return jsonError("Invalid project ID", 400);
+
   const body = await request.json();
   const [updated] = await db
     .update(projects)
@@ -32,12 +39,12 @@ export async function PUT(
       ...(body.content !== undefined && { content: body.content }),
       updatedAt: sql`(current_timestamp)`,
     })
-    .where(eq(projects.id, Number(id)))
+    .where(eq(projects.id, projectId))
     .returning();
   if (!updated) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    return jsonError("Project not found", 404);
   }
-  return NextResponse.json(updated);
+  return jsonOk(updated);
 }
 
 export async function DELETE(
@@ -45,12 +52,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const projectId = parseId(id);
+  if (!projectId) return jsonError("Invalid project ID", 400);
+
   const [deleted] = await db
     .delete(projects)
-    .where(eq(projects.id, Number(id)))
+    .where(eq(projects.id, projectId))
     .returning();
   if (!deleted) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    return jsonError("Project not found", 404);
   }
-  return NextResponse.json({ ok: true });
+  return jsonOk({ ok: true });
 }

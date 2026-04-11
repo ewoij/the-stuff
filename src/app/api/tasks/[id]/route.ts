@@ -1,15 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskStatus, taskComments, taskDependencies } from "@/lib/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { getCurrentStatus, latestStatusSubquery } from "@/lib/db/queries";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const taskId = Number(id);
+  const taskId = parseId(id);
+  if (!taskId) return jsonError("Invalid task ID", 400);
 
   const task = await db
     .select()
@@ -18,7 +20,7 @@ export async function GET(
     .get();
 
   if (!task) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    return jsonError("Task not found", 404);
   }
 
   const currentStatus = await getCurrentStatus(taskId);
@@ -82,7 +84,7 @@ export async function GET(
     )
     .where(eq(taskDependencies.dependsOnId, taskId));
 
-  return NextResponse.json({
+  return jsonOk({
     ...task,
     currentStatus,
     statusHistory,
@@ -98,7 +100,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const taskId = Number(id);
+  const taskId = parseId(id);
+  if (!taskId) return jsonError("Invalid task ID", 400);
+
   const body = await request.json();
 
   const [updated] = await db
@@ -117,9 +121,9 @@ export async function PUT(
     .returning();
 
   if (!updated) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    return jsonError("Task not found", 404);
   }
-  return NextResponse.json(updated);
+  return jsonOk(updated);
 }
 
 export async function DELETE(
@@ -127,12 +131,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const taskId = parseId(id);
+  if (!taskId) return jsonError("Invalid task ID", 400);
+
   const [deleted] = await db
     .delete(tasks)
-    .where(eq(tasks.id, Number(id)))
+    .where(eq(tasks.id, taskId))
     .returning();
   if (!deleted) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    return jsonError("Task not found", 404);
   }
-  return NextResponse.json({ ok: true });
+  return jsonOk({ ok: true });
 }

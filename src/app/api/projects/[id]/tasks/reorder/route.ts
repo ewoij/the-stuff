@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -8,13 +8,16 @@ import {
   rebalanceIfNeeded,
   getCurrentStatus,
 } from "@/lib/db/queries";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const projectId = Number(id);
+  const projectId = parseId(id);
+  if (!projectId) return jsonError("Invalid project ID", 400);
+
   const body = await request.json();
 
   const { taskId, previousTaskId, nextTaskId } = body as {
@@ -24,10 +27,7 @@ export async function POST(
   };
 
   if (!taskId) {
-    return NextResponse.json(
-      { error: "taskId is required" },
-      { status: 400 }
-    );
+    return jsonError("taskId is required", 400);
   }
 
   const [prevSortOrder, nextSortOrder] = await getNeighborSortOrders(
@@ -48,5 +48,5 @@ export async function POST(
     await rebalanceIfNeeded(projectId, status, prevSortOrder, nextSortOrder);
   }
 
-  return NextResponse.json({ ok: true });
+  return jsonOk({ ok: true });
 }

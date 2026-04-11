@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { agents } from "@/lib/db/schema";
+import { jsonError, jsonOk } from "@/lib/api-response";
 
 const ADJECTIVES = [
   "Swift", "Bright", "Silent", "Vivid", "Bold",
@@ -27,10 +28,7 @@ export async function POST(request: NextRequest) {
   const projectId: number | undefined = body.projectId;
 
   if (!projectId) {
-    return NextResponse.json(
-      { error: "projectId is required" },
-      { status: 400 }
-    );
+    return jsonError("projectId is required", 400);
   }
 
   const name = generateName();
@@ -40,5 +38,5 @@ export async function POST(request: NextRequest) {
     .values({ projectId, name })
     .returning();
 
-  return NextResponse.json({ id: created.id, name: created.name }, { status: 201 });
+  return jsonOk({ id: created.id, name: created.name }, 201);
 }
