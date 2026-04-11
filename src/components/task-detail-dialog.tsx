@@ -89,8 +89,10 @@ export function TaskDetailDialog({
 
               <div className="space-y-6 pb-2 overflow-y-auto">
                 {/* Description */}
-                {task.content && (
+                {task.content ? (
                   <Markdown content={task.content} />
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No description</p>
                 )}
 
                 {/* Branch / PR */}

@@ -7,11 +7,12 @@ interface TaskSubtasksListProps {
 }
 
 export function TaskSubtasksList({ subtasks }: TaskSubtasksListProps) {
-  if (subtasks.length === 0) return null;
-
   return (
     <div>
       <h3 className="text-sm font-medium mb-2">Subtasks</h3>
+      {subtasks.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No subtasks</p>
+      ) : (
       <div className="space-y-1">
         {subtasks.map((sub) => (
           <div
@@ -30,6 +31,7 @@ export function TaskSubtasksList({ subtasks }: TaskSubtasksListProps) {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

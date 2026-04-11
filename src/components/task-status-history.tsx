@@ -12,6 +12,9 @@ export function TaskStatusHistory({ statusHistory }: TaskStatusHistoryProps) {
     <div>
       <h3 className="text-sm font-medium mb-2">Status History</h3>
       <div className="space-y-2">
+        {statusHistory.length === 0 && (
+          <p className="text-xs text-muted-foreground">No status changes recorded</p>
+        )}
         {statusHistory.map((entry) => (
           <div
             key={entry.id}

@@ -60,6 +60,9 @@ export function TaskCommentsSection({
     <div>
       <h3 className="text-sm font-medium mb-2">Comments</h3>
       <div className="space-y-3">
+        {task.comments.length === 0 && (
+          <p className="text-xs text-muted-foreground">No comments yet</p>
+        )}
         {task.comments.map((comment) => (
           <div
             key={comment.id}

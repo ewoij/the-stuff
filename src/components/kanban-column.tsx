@@ -56,14 +56,20 @@ export function KanbanColumn({
           strategy={verticalListSortingStrategy}
         >
           <div ref={setNodeRef} className="flex flex-col gap-2 min-h-[40px]">
-            {visibleTasks.map((task) => (
-              <SortableTaskCard
-                key={task.id}
-                task={task}
-                onStatusChange={onStatusChange}
-                onClick={() => onTaskClick(task.id)}
-              />
-            ))}
+            {visibleTasks.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No tasks
+              </p>
+            ) : (
+              visibleTasks.map((task) => (
+                <SortableTaskCard
+                  key={task.id}
+                  task={task}
+                  onStatusChange={onStatusChange}
+                  onClick={() => onTaskClick(task.id)}
+                />
+              ))
+            )}
           </div>
         </SortableContext>
         {shouldCollapse && (
