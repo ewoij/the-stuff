@@ -46,13 +46,15 @@ export async function GET(
       pr: tasks.pr,
       title: tasks.title,
       content: tasks.content,
+      sortOrder: tasks.sortOrder,
       createdAt: tasks.createdAt,
       updatedAt: tasks.updatedAt,
       currentStatus: latestStatusSubquery.status,
     })
     .from(tasks)
     .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
-    .where(eq(tasks.parentTaskId, taskId));
+    .where(eq(tasks.parentTaskId, taskId))
+    .orderBy(tasks.sortOrder, tasks.createdAt);
 
   return NextResponse.json({
     ...task,
