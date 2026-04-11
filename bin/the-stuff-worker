@@ -179,6 +179,8 @@ while true; do
     BRANCH_EXISTS=true
   fi
 
+  EXISTING_PR_URL=""
+
   if $BRANCH_EXISTS; then
     echo "[worker] Resuming existing branch $BRANCH_NAME"
     # Check out the existing branch into a new worktree
@@ -196,6 +198,12 @@ while true; do
     }
     # Rebase onto latest base branch so the worktree is up to date
     (cd "$WORKTREE_DIR" && git rebase "origin/$BASE_BRANCH" 2>/dev/null) || true
+
+    # Look up existing PR
+    EXISTING_PR_URL=$(cd "$WORKTREE_DIR" && gh pr view "$BRANCH_NAME" --json url -q '.url' 2>/dev/null) || true
+    if [[ -n "$EXISTING_PR_URL" ]]; then
+      echo "[worker] Found existing PR: $EXISTING_PR_URL"
+    fi
   else
     git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "origin/$BASE_BRANCH" 2>/dev/null || {
       echo "[worker] Failed to create worktree. Releasing task."
@@ -211,6 +219,28 @@ while true; do
   echo ""
 
   # 4. Build prompt
+  PR_CONTEXT=""
+  if [[ -n "$EXISTING_PR_URL" ]]; then
+    PR_CONTEXT=$(cat <<PR_EOF
+
+## Existing PR
+This task was previously worked on. There is an existing PR: $EXISTING_PR_URL
+
+**Before doing anything else:**
+1. Read the PR comments using: gh pr view $EXISTING_PR_URL --comments
+2. Also check inline review comments using: gh api repos/{owner}/{repo}/pulls/{number}/comments
+3. Address all feedback from the comments in your implementation
+
+If anything in the comments is unclear or ambiguous:
+- Comment back on the PR explaining your interpretation
+- Also add a comment on the task using the task manager API:
+  curl -s -X POST $SERVER_URL/api/tasks/$TASK_ID/comments \\
+    -H 'Content-Type: application/json' \\
+    -d '{"content": "<your comment>"}'
+PR_EOF
+)
+  fi
+
   PROMPT=$(cat <<PROMPT_EOF
 You are an autonomous task worker. You have been assigned a task from "The Stuff" task manager.
 
@@ -220,6 +250,7 @@ You are an autonomous task worker. You have been assigned a task from "The Stuff
 - Title: $TASK_TITLE
 ${TASK_CONTENT:+- Description: $TASK_CONTENT}
 ${TASK_PARENT_ID:+- Parent Task ID: $TASK_PARENT_ID}
+${PR_CONTEXT}
 
 ## Environment
 - You are working in a git worktree at: $WORKTREE_DIR
@@ -243,6 +274,11 @@ Create subtask:
     -H 'Content-Type: application/json' \\
     -d '{"projectId": $TASK_PROJECT_ID, "parentTaskId": $TASK_ID, "title": "<title>", "content": "<details>"}'
 
+Add a comment on the task:
+  curl -s -X POST $SERVER_URL/api/tasks/$TASK_ID/comments \\
+    -H 'Content-Type: application/json' \\
+    -d '{"content": "<comment>"}'
+
 ## Instructions
 
 Decide whether this task requires **implementation** or **research**:
@@ -251,7 +287,7 @@ Decide whether this task requires **implementation** or **research**:
 1. The branch "$BRANCH_NAME" is already checked out — start coding
 2. Implement the changes
 3. Commit and push: git add <files> && git commit -m "<message>" && git push -u origin $BRANCH_NAME
-4. Create a PR: gh pr create --base $BASE_BRANCH --title "<title>" --body "<description>"
+4. Create a PR (or push to existing): gh pr create --base $BASE_BRANCH --title "<title>" --body "<description>"
 5. Call complete-task with the branch name and PR URL
 
 ### Research mode (investigation only, no code changes)
