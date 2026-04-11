@@ -4,7 +4,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # the-stuff-worker — autonomous task worker powered by Claude Code
 #
-# Usage: the-stuff-worker <project-id> [options]
+# Usage: the-stuff-worker [project-id] [options]
 #
 # Options:
 #   --server URL      Server URL (default: $THE_STUFF_URL or http://localhost:3000)
@@ -22,22 +22,70 @@ WORKTREE_DIR=""
 # --- Argument parsing ------------------------------------------------------
 
 usage() {
-  echo "Usage: the-stuff-worker <project-id> [--server URL] [--base-branch BRANCH]"
+  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH]"
+  echo ""
+  echo "If project-id is omitted, you will be prompted to select a project."
   exit 1
 }
 
-[[ $# -lt 1 ]] && usage
+PROJECT_ID=""
 
-PROJECT_ID="$1"
-shift
+# First arg could be a project ID (numeric) or a flag
+if [[ $# -gt 0 && "$1" =~ ^[0-9]+$ ]]; then
+  PROJECT_ID="$1"
+  shift
+fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --server) SERVER_URL="$2"; shift 2 ;;
     --base-branch) BASE_BRANCH="$2"; shift 2 ;;
+    --help|-h) usage ;;
     *) usage ;;
   esac
 done
+
+# --- Project selection (if not provided) ------------------------------------
+
+if [[ -z "$PROJECT_ID" ]]; then
+  PROJECTS_RESPONSE=$(curl -s -w "\n%{http_code}" "$SERVER_URL/api/projects")
+  PROJECTS_HTTP=$(echo "$PROJECTS_RESPONSE" | tail -1)
+  PROJECTS_BODY=$(echo "$PROJECTS_RESPONSE" | sed '$d')
+
+  if [[ "$PROJECTS_HTTP" != "200" ]]; then
+    echo "Error: Failed to fetch projects from $SERVER_URL (HTTP $PROJECTS_HTTP)"
+    exit 1
+  fi
+
+  PROJECT_COUNT=$(echo "$PROJECTS_BODY" | jq 'length')
+
+  if [[ "$PROJECT_COUNT" -eq 0 ]]; then
+    echo "No projects found. Create a project first."
+    exit 1
+  fi
+
+  echo "Select a project:"
+  echo ""
+  for i in $(seq 0 $((PROJECT_COUNT - 1))); do
+    P_ID=$(echo "$PROJECTS_BODY" | jq -r ".[$i].id")
+    P_NAME=$(echo "$PROJECTS_BODY" | jq -r ".[$i].name")
+    echo "  $((i + 1))) $P_NAME (id: $P_ID)"
+  done
+  echo ""
+
+  while true; do
+    printf "Enter choice [1-%d]: " "$PROJECT_COUNT"
+    read -r CHOICE
+    if [[ "$CHOICE" =~ ^[0-9]+$ && "$CHOICE" -ge 1 && "$CHOICE" -le "$PROJECT_COUNT" ]]; then
+      PROJECT_ID=$(echo "$PROJECTS_BODY" | jq -r ".[$(($CHOICE - 1))].id")
+      PROJECT_NAME=$(echo "$PROJECTS_BODY" | jq -r ".[$(($CHOICE - 1))].name")
+      echo ""
+      echo "Selected: $PROJECT_NAME (id: $PROJECT_ID)"
+      break
+    fi
+    echo "Invalid choice. Please enter a number between 1 and $PROJECT_COUNT."
+  done
+fi
 
 # --- Cleanup trap ----------------------------------------------------------
 
