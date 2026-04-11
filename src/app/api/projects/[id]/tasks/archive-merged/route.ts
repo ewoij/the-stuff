@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { execFile } from "child_process";
 import { db } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
 import { eq, sql, and, ne, isNotNull } from "drizzle-orm";
@@ -12,21 +13,20 @@ function parsePrUrl(url: string) {
   return { owner: match[1], repo: match[2], number: match[3] };
 }
 
-async function isPrMerged(owner: string, repo: string, number: string) {
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-  };
-  const token = process.env.GITHUB_TOKEN;
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/merge`,
-    { headers }
-  );
-  // 204 = merged, 404 = not merged
-  return res.status === 204;
+async function isPrMerged(owner: string, repo: string, number: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile(
+      "gh",
+      ["pr", "view", number, "--repo", `${owner}/${repo}`, "--json", "state", "--jq", ".state"],
+      (error: Error | null, stdout: string) => {
+        if (error) {
+          resolve(false);
+          return;
+        }
+        resolve(stdout.trim() === "MERGED");
+      }
+    );
+  });
 }
 
 export async function POST(
