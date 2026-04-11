@@ -1,14 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { agents } from "@/lib/db/schema";
 import { eq, sql, and, gt } from "drizzle-orm";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const projectId = Number(id);
+  const projectId = parseId(id);
+  if (!projectId) return jsonError("Invalid project ID", 400);
 
   // Prune agents with heartbeat older than 60 seconds
   await db
@@ -30,5 +32,5 @@ export async function GET(
     .where(eq(agents.projectId, projectId))
     .orderBy(agents.createdAt);
 
-  return NextResponse.json(rows);
+  return jsonOk(rows);
 }

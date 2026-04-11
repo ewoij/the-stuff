@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { agents } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { jsonError, jsonOk } from "@/lib/api-response";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -9,10 +10,7 @@ export async function POST(request: NextRequest) {
   const taskId: number | null = body.taskId ?? null;
 
   if (!agentId) {
-    return NextResponse.json(
-      { error: "agentId is required" },
-      { status: 400 }
-    );
+    return jsonError("agentId is required", 400);
   }
 
   const result = await db
@@ -25,11 +23,8 @@ export async function POST(request: NextRequest) {
     .returning();
 
   if (result.length === 0) {
-    return NextResponse.json(
-      { error: "Agent not found" },
-      { status: 404 }
-    );
+    return jsonError("Agent not found", 404);
   }
 
-  return NextResponse.json({ ok: true });
+  return jsonOk({ ok: true });
 }

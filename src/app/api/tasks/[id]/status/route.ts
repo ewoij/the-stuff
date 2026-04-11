@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -9,20 +9,20 @@ import {
   rebalanceIfNeeded,
 } from "@/lib/db/queries";
 import { TASK_STATUSES } from "@/lib/constants/task-statuses";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const taskId = Number(id);
+  const taskId = parseId(id);
+  if (!taskId) return jsonError("Invalid task ID", 400);
+
   const body = await request.json();
 
   if (!TASK_STATUSES.includes(body.status)) {
-    return NextResponse.json(
-      { error: `status must be one of: ${TASK_STATUSES.join(", ")}` },
-      { status: 400 }
-    );
+    return jsonError(`status must be one of: ${TASK_STATUSES.join(", ")}`, 400);
   }
 
   const [created] = await db
@@ -76,5 +76,5 @@ export async function POST(
     }
   }
 
-  return NextResponse.json(created, { status: 201 });
+  return jsonOk(created, 201);
 }

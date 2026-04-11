@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { taskDependencies } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function DELETE(
   _request: NextRequest,
@@ -10,8 +11,10 @@ export async function DELETE(
   }: { params: Promise<{ id: string; dependsOnId: string }> }
 ) {
   const { id, dependsOnId } = await params;
-  const taskId = Number(id);
-  const depId = Number(dependsOnId);
+  const taskId = parseId(id);
+  if (!taskId) return jsonError("Invalid task ID", 400);
+  const depId = parseId(dependsOnId);
+  if (!depId) return jsonError("Invalid dependency ID", 400);
 
   const [deleted] = await db
     .delete(taskDependencies)
@@ -24,11 +27,8 @@ export async function DELETE(
     .returning();
 
   if (!deleted) {
-    return NextResponse.json(
-      { error: "Dependency not found" },
-      { status: 404 }
-    );
+    return jsonError("Dependency not found", 404);
   }
 
-  return NextResponse.json({ ok: true });
+  return jsonOk({ ok: true });
 }

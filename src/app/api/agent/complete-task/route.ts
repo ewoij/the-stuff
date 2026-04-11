@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getNextSortOrder } from "@/lib/db/queries";
+import { jsonError, jsonOk } from "@/lib/api-response";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -13,10 +14,7 @@ export async function POST(request: NextRequest) {
   };
 
   if (!taskId) {
-    return NextResponse.json(
-      { error: "taskId is required" },
-      { status: 400 }
-    );
+    return jsonError("taskId is required", 400);
   }
 
   // Set status to DONE
@@ -43,5 +41,5 @@ export async function POST(request: NextRequest) {
 
   const task = await db.select().from(tasks).where(eq(tasks.id, taskId)).get();
 
-  return NextResponse.json({ ...task, currentStatus: "DONE" });
+  return jsonOk({ ...task, currentStatus: "DONE" });
 }

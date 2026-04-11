@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
 import { getNextSortOrder } from "@/lib/db/queries";
+import { jsonError, jsonOk } from "@/lib/api-response";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -16,10 +17,7 @@ export async function POST(request: NextRequest) {
   };
 
   if (!projectId || !title) {
-    return NextResponse.json(
-      { error: "projectId and title are required" },
-      { status: 400 }
-    );
+    return jsonError("projectId and title are required", 400);
   }
 
   const sortOrder = await getNextSortOrder(projectId);
@@ -43,8 +41,5 @@ export async function POST(request: NextRequest) {
     status: initialStatus,
   });
 
-  return NextResponse.json(
-    { ...created, currentStatus: initialStatus },
-    { status: 201 }
-  );
+  return jsonOk({ ...created, currentStatus: initialStatus }, 201);
 }

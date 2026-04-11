@@ -1,15 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskStatus, agents, taskDependencies } from "@/lib/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { latestStatusSubquery, getNextSortOrder } from "@/lib/db/queries";
+import { jsonError, jsonOk, parseId } from "@/lib/api-response";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const projectId = Number(id);
+  const projectId = parseId(id);
+  if (!projectId) return jsonError("Invalid project ID", 400);
 
   const rows = await db
     .select({
@@ -65,7 +67,7 @@ export async function GET(
     isBlocked: blockedIds.has(row.id),
   }));
 
-  return NextResponse.json(result);
+  return jsonOk(result);
 }
 
 export async function POST(
@@ -73,11 +75,13 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const projectId = Number(id);
+  const projectId = parseId(id);
+  if (!projectId) return jsonError("Invalid project ID", 400);
+
   const body = await request.json();
 
   if (!body.title) {
-    return NextResponse.json({ error: "title is required" }, { status: 400 });
+    return jsonError("title is required", 400);
   }
 
   const sortOrder = await getNextSortOrder(projectId);
@@ -102,5 +106,5 @@ export async function POST(
     status: initialStatus,
   });
 
-  return NextResponse.json({ ...created, currentStatus: initialStatus }, { status: 201 });
+  return jsonOk({ ...created, currentStatus: initialStatus }, 201);
 }
