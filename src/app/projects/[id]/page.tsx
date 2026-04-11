@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { NavBar } from "@/components/nav-bar";
 import { KanbanBoard } from "@/components/kanban-board";
 import { TaskFormDialog } from "@/components/task-form-dialog";
-import { TaskDetailSheet } from "@/components/task-detail-sheet";
+import { TaskDetailDialog } from "@/components/task-detail-dialog";
 import { Button } from "@/components/ui/button";
 import { useTasks } from "@/lib/hooks/use-tasks";
 import { Plus, Archive } from "lucide-react";
@@ -79,7 +79,7 @@ export default function ProjectPage() {
           onSaved={refresh}
         />
 
-        <TaskDetailSheet
+        <TaskDetailDialog
           taskId={selectedTaskId}
           open={selectedTaskId !== null}
           onOpenChange={(open) => {
