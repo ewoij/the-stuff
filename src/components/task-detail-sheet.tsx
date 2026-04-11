@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { TaskFormDialog } from "@/components/task-form-dialog";
 import { useTask } from "@/lib/hooks/use-task";
-import { GitBranch, ExternalLink, Clock } from "lucide-react";
+import { GitBranch, ExternalLink, Clock, Pencil } from "lucide-react";
 
 const STATUSES = ["TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
 
@@ -39,6 +40,7 @@ export function TaskDetailSheet({
   const { task, loading, refresh } = useTask(open ? taskId : null);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   async function handleStatusChange(status: string) {
     if (!task) return;
@@ -82,7 +84,16 @@ export function TaskDetailSheet({
         ) : (
           <>
             <SheetHeader>
-              <SheetTitle>{task.title}</SheetTitle>
+              <div className="flex items-center justify-between gap-2">
+                <SheetTitle>{task.title}</SheetTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditOpen(true)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </div>
               <div className="flex items-center gap-2">
                 <Badge
                   className={STATUS_COLORS[task.currentStatus ?? ""] ?? ""}
@@ -240,6 +251,19 @@ export function TaskDetailSheet({
           </>
         )}
       </SheetContent>
+
+      {task && (
+        <TaskFormDialog
+          projectId={task.projectId}
+          task={task}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onSaved={() => {
+            refresh();
+            onChanged();
+          }}
+        />
+      )}
     </Sheet>
   );
 }
