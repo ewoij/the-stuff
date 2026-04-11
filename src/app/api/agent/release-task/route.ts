@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, taskStatus } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { getNextSortOrder } from "@/lib/db/queries";
+import { getTaskProjectIdAndNextSortOrder } from "@/lib/db/queries";
 import { jsonError, jsonOk } from "@/lib/api-response";
 
 export async function POST(request: NextRequest) {
@@ -17,12 +17,8 @@ export async function POST(request: NextRequest) {
   await db.insert(taskStatus).values({ taskId, status: "TODO" });
 
   // Get task's project to compute next sort_order
-  const existing = await db
-    .select({ projectId: tasks.projectId })
-    .from(tasks)
-    .where(eq(tasks.id, taskId))
-    .get();
-  const sortOrder = existing ? await getNextSortOrder(existing.projectId) : undefined;
+  const result = await getTaskProjectIdAndNextSortOrder(taskId);
+  const sortOrder = result?.sortOrder;
 
   // Update sortOrder and updatedAt
   await db
