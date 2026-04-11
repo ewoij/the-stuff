@@ -23,11 +23,11 @@ npm run dev
 ## Database commands
 
 ```bash
-npm run db:generate  # Generate Drizzle migrations from schema changes
-npm run db:migrate   # Apply pending migrations
-npm run db:push      # Push schema directly to database
+npm run db:push      # Apply schema changes to database
 npm run db:studio    # Open Drizzle Studio UI
 ```
+
+Schema lives in `src/lib/db/schema.ts`. After any schema change, run `npm run db:push` to apply it.
 
 ## API
 
