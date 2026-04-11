@@ -5,13 +5,14 @@ import { getNextSortOrder } from "@/lib/db/queries";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { projectId, title, content, parentTaskId, branch, pr } = body as {
+  const { projectId, title, content, parentTaskId, branch, pr, draft } = body as {
     projectId: number;
     title: string;
     content?: string;
     parentTaskId?: number;
     branch?: string;
     pr?: string;
+    draft?: boolean;
   };
 
   if (!projectId || !title) {
@@ -36,13 +37,14 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
+  const initialStatus = draft === false ? "TODO" : "DRAFT";
   await db.insert(taskStatus).values({
     taskId: created.id,
-    status: "TODO",
+    status: initialStatus,
   });
 
   return NextResponse.json(
-    { ...created, currentStatus: "TODO" },
+    { ...created, currentStatus: initialStatus },
     { status: 201 }
   );
 }

@@ -4,7 +4,7 @@ import { tasks, taskStatus } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getNextSortOrder } from "@/lib/db/queries";
 
-const VALID_STATUSES = ["TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
+const VALID_STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
 
 export async function POST(
   request: NextRequest,

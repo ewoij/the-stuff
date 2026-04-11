@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { MoreHorizontal, GitBranch, ExternalLink } from "lucide-react";
 import type { TaskWithStatus } from "@/lib/types";
 
-const STATUSES = ["TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
+const STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
 
 interface TaskCardProps {
   task: TaskWithStatus;
