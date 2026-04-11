@@ -244,7 +244,7 @@ PROMPT_EOF
   (
     cd "$WORKTREE_DIR"
     claude -p "$PROMPT" --dangerously-skip-permissions --no-session-persistence \
-      --output-format stream-json | while IFS= read -r line; do
+      --verbose --output-format stream-json | while IFS= read -r line; do
       # Quick pre-filter: skip high-frequency events we don't display
       if [[ "$line" != *'"system"'* && "$line" != *'"assistant"'* && "$line" != *'"result"'* ]]; then
         continue
