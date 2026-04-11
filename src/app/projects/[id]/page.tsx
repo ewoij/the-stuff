@@ -92,6 +92,20 @@ export default function ProjectPage() {
 
         {loading ? (
           <p className="text-muted-foreground">Loading...</p>
+        ) : tasks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 px-4 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-4">
+              <Plus className="size-7 text-muted-foreground" />
+            </div>
+            <h2 className="text-lg font-medium mb-1">No tasks yet</h2>
+            <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+              Create your first task to start organizing work in this project.
+            </p>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4 mr-2" />
+              New Task
+            </Button>
+          </div>
         ) : (
           <KanbanBoard
             tasks={tasks}
