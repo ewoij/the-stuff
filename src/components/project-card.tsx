@@ -71,7 +71,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const initials = getInitials(project.name);
   const avatarColor = getAvatarColor(project.name);
   const totalTasks = project.taskCounts.total;
-  const hasActivity = totalTasks > 0 || project.activeAgents > 0;
 
   return (
     <Link href={`/projects/${project.id}`} className="group">
@@ -94,30 +93,34 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </div>
         </CardHeader>
 
-        {hasActivity && (
-          <CardContent>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              {project.taskCounts.todo > 0 && (
-                <span className="flex items-center gap-1">
-                  <Circle className="size-3" />
-                  {project.taskCounts.todo} to do
-                </span>
-              )}
-              {project.taskCounts.inProgress > 0 && (
-                <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                  <Loader2 className="size-3" />
-                  {project.taskCounts.inProgress} in progress
-                </span>
-              )}
-              {project.taskCounts.done > 0 && (
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="size-3" />
-                  {project.taskCounts.done} done
-                </span>
-              )}
-            </div>
-          </CardContent>
-        )}
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            {totalTasks === 0 && project.activeAgents === 0 ? (
+              <span>No tasks yet</span>
+            ) : (
+              <>
+                {project.taskCounts.todo > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Circle className="size-3" />
+                    {project.taskCounts.todo} to do
+                  </span>
+                )}
+                {project.taskCounts.inProgress > 0 && (
+                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                    <Loader2 className="size-3" />
+                    {project.taskCounts.inProgress} in progress
+                  </span>
+                )}
+                {project.taskCounts.done > 0 && (
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="size-3" />
+                    {project.taskCounts.done} done
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </CardContent>
 
         <CardFooter className="text-xs text-muted-foreground">
           <div className="flex w-full items-center justify-between">
