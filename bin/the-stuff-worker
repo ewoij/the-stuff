@@ -239,9 +239,38 @@ Decide whether this task requires **implementation** or **research**:
 PROMPT_EOF
 )
 
-  # 5. Run Claude Code inside the worktree
+  # 5. Run Claude Code inside the worktree (with streaming status output)
   set +e
-  (cd "$WORKTREE_DIR" && claude -p "$PROMPT" --dangerously-skip-permissions --no-session-persistence)
+  (
+    cd "$WORKTREE_DIR"
+    claude -p "$PROMPT" --dangerously-skip-permissions --no-session-persistence \
+      --output-format stream-json | while IFS= read -r line; do
+      # Quick pre-filter: skip high-frequency events we don't display
+      if [[ "$line" != *'"system"'* && "$line" != *'"assistant"'* && "$line" != *'"result"'* ]]; then
+        continue
+      fi
+      type=$(echo "$line" | jq -r '.type // empty' 2>/dev/null) || continue
+      case "$type" in
+        system)
+          echo "[claude] Session started"
+          ;;
+        assistant)
+          tools=$(echo "$line" | jq -r '.message.content[]? | select(.type=="tool_use") | .name' 2>/dev/null)
+          if [[ -n "$tools" ]]; then
+            while IFS= read -r tool; do
+              echo "[claude] Tool call: $tool"
+            done <<< "$tools"
+          fi
+          ;;
+        result)
+          duration=$(echo "$line" | jq -r '.duration_ms // empty' 2>/dev/null)
+          cost=$(echo "$line" | jq -r '.total_cost_usd // empty' 2>/dev/null)
+          turns=$(echo "$line" | jq -r '.num_turns // empty' 2>/dev/null)
+          echo "[claude] Done — ${turns} turns, ${duration}ms, \$${cost}"
+          ;;
+      esac
+    done
+  )
   CLAUDE_EXIT=$?
   set -e
 
