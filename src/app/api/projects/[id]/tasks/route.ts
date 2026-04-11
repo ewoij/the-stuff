@@ -20,6 +20,7 @@ export async function GET(
       pr: tasks.pr,
       title: tasks.title,
       content: tasks.content,
+      sortOrder: tasks.sortOrder,
       createdAt: tasks.createdAt,
       updatedAt: tasks.updatedAt,
       currentStatus: latestStatusSubquery.status,
@@ -27,7 +28,7 @@ export async function GET(
     .from(tasks)
     .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
     .where(eq(tasks.projectId, projectId))
-    .orderBy(tasks.createdAt);
+    .orderBy(tasks.sortOrder, tasks.createdAt);
 
   return NextResponse.json(rows);
 }

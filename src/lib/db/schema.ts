@@ -19,6 +19,7 @@ export const tasks = sqliteTable("tasks", {
   pr: text("pr"),
   title: text("title").notNull(),
   content: text("content"),
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
   updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
 });
