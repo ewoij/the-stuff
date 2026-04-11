@@ -86,7 +86,7 @@ export function TaskDetailSheet({
         ) : (
           <>
             <SheetHeader>
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 pr-8">
                 <SheetTitle>{task.title}</SheetTitle>
                 <Button
                   variant="ghost"
