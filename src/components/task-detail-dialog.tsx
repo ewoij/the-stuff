@@ -19,11 +19,19 @@ import { Markdown } from "@/components/markdown";
 const STATUSES = ["DRAFT", "TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: "bg-purple-100 text-purple-800",
-  TODO: "bg-blue-100 text-blue-800",
-  PROGRESS: "bg-yellow-100 text-yellow-800",
-  DONE: "bg-green-100 text-green-800",
-  ARCHIVED: "bg-gray-100 text-gray-600",
+  DRAFT: "bg-purple-100 text-purple-700",
+  TODO: "bg-blue-100 text-blue-700",
+  PROGRESS: "bg-amber-100 text-amber-700",
+  DONE: "bg-emerald-100 text-emerald-700",
+  ARCHIVED: "bg-gray-100 text-gray-500",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Draft",
+  TODO: "To Do",
+  PROGRESS: "In Progress",
+  DONE: "Done",
+  ARCHIVED: "Archived",
 };
 
 interface TaskDetailDialogProps {
@@ -101,7 +109,7 @@ export function TaskDetailDialog({
                   className={STATUS_COLORS[task.currentStatus ?? ""] ?? ""}
                   variant="secondary"
                 >
-                  {task.currentStatus}
+                  {STATUS_LABELS[task.currentStatus ?? ""] ?? task.currentStatus}
                 </Badge>
               </div>
             </DialogHeader>
@@ -148,7 +156,7 @@ export function TaskDetailDialog({
                         size="sm"
                         onClick={() => handleStatusChange(status)}
                       >
-                        {status}
+                        {STATUS_LABELS[status] ?? status}
                       </Button>
                     )
                   )}
@@ -174,7 +182,7 @@ export function TaskDetailDialog({
                             STATUS_COLORS[sub.currentStatus ?? ""] ?? ""
                           }
                         >
-                          {sub.currentStatus}
+                          {STATUS_LABELS[sub.currentStatus ?? ""] ?? sub.currentStatus}
                         </Badge>
                       </div>
                     ))}
@@ -196,7 +204,7 @@ export function TaskDetailDialog({
                         variant="secondary"
                         className={STATUS_COLORS[entry.status] ?? ""}
                       >
-                        {entry.status}
+                        {STATUS_LABELS[entry.status] ?? entry.status}
                       </Badge>
                       <span>{new Date(entry.createdAt).toLocaleString()}</span>
                     </div>
