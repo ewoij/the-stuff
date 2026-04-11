@@ -304,6 +304,18 @@ Decide whether this task requires **implementation** or **research**:
 2. Create subtask(s) with your findings using the create-task API
 3. Call complete-task (without branch/pr since no code was changed)
 
+## Progress Reporting
+Post progress comments on the task using the "Add a comment" API at major milestones so that
+progress is visible from the task manager UI. Good examples:
+- "Created migration and updated schema"
+- "Tests passing, creating PR"
+- "PR created: <url>"
+- "Addressing review feedback: <summary>"
+- "Investigation complete — created 3 subtasks"
+
+Do NOT comment on routine steps like reading files, running tests, or searching the codebase.
+Aim for 2–4 comments over the lifetime of a task, not one per action.
+
 ## Important
 - You MUST call either complete-task or release-task before finishing
 - If you encounter an error you cannot resolve, call release-task
