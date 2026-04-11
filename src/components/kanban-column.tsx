@@ -6,6 +6,7 @@ import { TaskCard } from "@/components/task-card";
 import type { TaskWithStatus } from "@/lib/types";
 
 const STATUS_COLORS: Record<string, string> = {
+  DRAFT: "bg-purple-100 text-purple-800",
   TODO: "bg-blue-100 text-blue-800",
   PROGRESS: "bg-yellow-100 text-yellow-800",
   DONE: "bg-green-100 text-green-800",
