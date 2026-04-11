@@ -18,12 +18,13 @@ interface TaskCardProps {
   task: TaskWithStatus;
   onStatusChange: (taskId: number, status: string) => void;
   onClick: () => void;
+  isDragOverlay?: boolean;
 }
 
-export function TaskCard({ task, onStatusChange, onClick }: TaskCardProps) {
+export function TaskCard({ task, onStatusChange, onClick, isDragOverlay }: TaskCardProps) {
   return (
     <Card
-      className="cursor-pointer hover:bg-accent/50 transition-colors"
+      className={`cursor-pointer hover:bg-accent/50 transition-colors ${isDragOverlay ? "shadow-lg ring-2 ring-primary/20 rotate-[2deg]" : ""}`}
       onClick={onClick}
     >
       <CardHeader className="p-3 space-y-2">

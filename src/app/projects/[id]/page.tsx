@@ -13,7 +13,7 @@ import { Plus } from "lucide-react";
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = Number(params.id);
-  const { tasks, loading, refresh } = useTasks(projectId);
+  const { tasks, loading, refresh, reorderTasks } = useTasks(projectId);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
@@ -45,6 +45,7 @@ export default function ProjectPage() {
             tasks={tasks}
             onStatusChange={handleStatusChange}
             onTaskClick={(id) => setSelectedTaskId(id)}
+            onReorder={reorderTasks}
           />
         )}
 
