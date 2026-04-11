@@ -1,8 +1,12 @@
 "use client";
 
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TaskCard } from "@/components/task-card";
+import { SortableTaskCard } from "@/components/sortable-task-card";
 import type { TaskWithStatus } from "@/lib/types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -25,6 +29,8 @@ export function KanbanColumn({
   onStatusChange,
   onTaskClick,
 }: KanbanColumnProps) {
+  const taskIds = tasks.map((t) => t.id);
+
   return (
     <div className="flex flex-col min-w-[280px] w-[280px] bg-muted/50 rounded-lg">
       <div className="flex items-center gap-2 p-3 pb-2">
@@ -34,16 +40,21 @@ export function KanbanColumn({
         <span className="text-xs text-muted-foreground">{tasks.length}</span>
       </div>
       <ScrollArea className="flex-1 px-3 pb-3">
-        <div className="flex flex-col gap-2">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onStatusChange={onStatusChange}
-              onClick={() => onTaskClick(task.id)}
-            />
-          ))}
-        </div>
+        <SortableContext
+          items={taskIds}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex flex-col gap-2">
+            {tasks.map((task) => (
+              <SortableTaskCard
+                key={task.id}
+                task={task}
+                onStatusChange={onStatusChange}
+                onClick={() => onTaskClick(task.id)}
+              />
+            ))}
+          </div>
+        </SortableContext>
       </ScrollArea>
     </div>
   );
