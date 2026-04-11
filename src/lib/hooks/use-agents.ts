@@ -1,23 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useFetch } from "./use-fetch";
 import type { Agent } from "@/lib/types";
 
 export function useAgents(projectId: number) {
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const { data: agents, loading, error, refresh } = useFetch<Agent[]>(
+    `/api/projects/${projectId}/agents`,
+    [],
+    { pollInterval: 10_000 }
+  );
 
-  const refresh = useCallback(async () => {
-    const res = await fetch(`/api/projects/${projectId}/agents`);
-    if (res.ok) {
-      setAgents(await res.json());
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 10_000);
-    return () => clearInterval(interval);
-  }, [refresh]);
-
-  return { agents };
+  return { agents, loading, error, refresh };
 }
