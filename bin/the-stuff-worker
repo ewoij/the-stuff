@@ -244,32 +244,23 @@ PROMPT_EOF
   (
     cd "$WORKTREE_DIR"
     claude -p "$PROMPT" --dangerously-skip-permissions --no-session-persistence \
-      --verbose --output-format stream-json | while IFS= read -r line; do
-      # Quick pre-filter: skip high-frequency events we don't display
-      if [[ "$line" != *'"system"'* && "$line" != *'"assistant"'* && "$line" != *'"result"'* ]]; then
-        continue
-      fi
-      type=$(echo "$line" | jq -r '.type // empty' 2>/dev/null) || continue
-      case "$type" in
-        system)
-          echo "[claude] Session started"
-          ;;
-        assistant)
-          tools=$(echo "$line" | jq -r '.message.content[]? | select(.type=="tool_use") | .name' 2>/dev/null)
-          if [[ -n "$tools" ]]; then
-            while IFS= read -r tool; do
-              echo "[claude] Tool call: $tool"
-            done <<< "$tools"
-          fi
-          ;;
-        result)
-          duration=$(echo "$line" | jq -r '.duration_ms // empty' 2>/dev/null)
-          cost=$(echo "$line" | jq -r '.total_cost_usd // empty' 2>/dev/null)
-          turns=$(echo "$line" | jq -r '.num_turns // empty' 2>/dev/null)
-          echo "[claude] Done — ${turns} turns, ${duration}ms, \$${cost}"
-          ;;
-      esac
-    done
+      --verbose --output-format stream-json | \
+      jq -r --unbuffered '
+        if .type == "system" and (.subtype // empty) == "" then
+          "[claude] Session started"
+        elif .type == "assistant" then
+          [.message.content[]? | select(.type=="tool_use") | .name] |
+          if length > 0 then
+            # Skip read-only tools — only show actions that modify state
+            map(select(. != "Read" and . != "Glob" and . != "Grep" and . != "Explore")) |
+            if length > 0 then
+              "[claude] " + join(", ")
+            else empty end
+          else empty end
+        elif .type == "result" then
+          "[claude] Done — \(.num_turns // "?") turns, \(.duration_ms // "?")ms, $\(.total_cost_usd // "?")"
+        else empty end
+      ' 2>/dev/null
   )
   CLAUDE_EXIT=$?
   set -e
