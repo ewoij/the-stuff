@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { TaskFormDialog } from "@/components/task-form-dialog";
 import { useTask } from "@/lib/hooks/use-task";
 import { GitBranch, ExternalLink, Clock, Pencil } from "lucide-react";
+import { Markdown } from "@/components/markdown";
 
 const STATUSES = ["TODO", "PROGRESS", "DONE", "ARCHIVED"] as const;
 
@@ -107,7 +108,7 @@ export function TaskDetailSheet({
             <div className="px-4 space-y-6 pb-8">
               {/* Description */}
               {task.content && (
-                <p className="text-sm text-muted-foreground">{task.content}</p>
+                <Markdown content={task.content} />
               )}
 
               {/* Branch / PR */}
@@ -213,7 +214,7 @@ export function TaskDetailSheet({
                       key={comment.id}
                       className="text-sm p-3 rounded bg-muted/50"
                     >
-                      <p className="whitespace-pre-wrap">{comment.content}</p>
+                      <Markdown content={comment.content} />
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs text-muted-foreground">
                           {new Date(comment.createdAt).toLocaleString()}
