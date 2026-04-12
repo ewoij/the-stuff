@@ -35,17 +35,6 @@ A few things worth knowing:
 - [GitHub CLI](https://cli.github.com/) (`gh`) — used by the worker to create PRs
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — used by the worker to process tasks
 
-## Setup
-
-```bash
-git clone <repo-url> && cd the-stuff
-npm install
-npm run db:push   # create the SQLite database
-npm run dev       # start the dev server at http://localhost:3000
-```
-
-The database is stored at `./data/the-stuff.db` (auto-created on first run).
-
 ## Why "The Stuff"
 
 I always have a project called "stuff" where I dump the tasks I need to do. I wanted something similar, but where a swarm of Claude Code agents could pick up tasks and implement them autonomously. I could have learned an existing framework, but I'm lazy, building it is more fun, and the result fits exactly how I work.
