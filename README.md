@@ -32,7 +32,13 @@ This is a toy project for local development. If you need something production-gr
 
 ## How it works
 
-You can also create research tasks where the agent will not implement anything, no PR, just plan mode and will spawn other tasks.
+Tasks start as drafts. Moving one to **TODO** is the dispatch signal — a worker picks it up, spins up an isolated git worktree, runs Claude Code to implement the change, and opens a PR. You review and merge.
+
+A few things worth knowing:
+
+- **Dependencies.** A task with unresolved prerequisites won't be picked up until they're archived.
+- **Research tasks.** Some tasks are plan-only: the agent stays in plan mode, writes no code, and spawns follow-up tasks instead of opening a PR.
+- **Session reuse.** Agents reuse the same Claude session across a handful of tasks, so context carries over.
 
 ## Prerequisites
 
