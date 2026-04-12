@@ -24,12 +24,6 @@ Then:
 6. Move them to **TODO** to dispatch
 7. Ask Claude to review and merge the PRs
 
-## Why "The Stuff"
-
-I always have a project called "stuff" where I dump the tasks I need to do. I wanted something similar, but where a swarm of Claude Code agents could pick up tasks and implement them autonomously. I could have learned an existing framework, but I'm lazy, building it is more fun, and the result fits exactly how I work.
-
-This is a toy project for local development. If you need something production-grade for agent orchestration, more serious tools exist.
-
 ## How it works
 
 Tasks start as drafts. Moving one to **TODO** is the dispatch signal — a worker picks it up, spins up an isolated git worktree, runs Claude Code to implement the change, and opens a PR. You review and merge.
@@ -104,3 +98,9 @@ THE_STUFF_URL=http://my-server:3000 the-stuff-worker 1
 ```
 
 </details>
+
+## Why "The Stuff"
+
+I always have a project called "stuff" where I dump the tasks I need to do. I wanted something similar, but where a swarm of Claude Code agents could pick up tasks and implement them autonomously. I could have learned an existing framework, but I'm lazy, building it is more fun, and the result fits exactly how I work.
+
+This is a toy project for local development. If you need something production-grade for agent orchestration, more serious tools exist.
