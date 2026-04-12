@@ -6,6 +6,7 @@ import { NavBar } from "@/components/nav-bar";
 import { KanbanBoard } from "@/components/kanban-board";
 import { TaskFormDialog } from "@/components/task-form-dialog";
 import { TaskDetailDialog } from "@/components/task-detail-dialog";
+import { ActivityTimeline } from "@/components/activity-timeline";
 import { Button } from "@/components/ui/button";
 import { useTasks } from "@/lib/hooks/use-tasks";
 import { useAgents } from "@/lib/hooks/use-agents";
@@ -89,6 +90,8 @@ export default function ProjectPage() {
             </div>
           </div>
         )}
+
+        <ActivityTimeline projectId={projectId} />
 
         {loading ? (
           <p className="text-muted-foreground">Loading...</p>
