@@ -70,10 +70,6 @@ ln -s "$PWD/.claude/skills/the-stuff" ~/.claude/skills/the-stuff
 
 Once linked, you can ask Claude to create tasks, list projects, update statuses — all through natural language.
 
-## Create and dispatch tasks
-
-Ask Claude to create tasks in your project (or use the Kanban board at localhost:3000). Tasks start as drafts. When you're ready to dispatch work, move them to **TODO** — that's the signal for workers to pick them up.
-
 ## Spawn workers
 
 ```bash
