@@ -32,15 +32,6 @@ This is a toy project for local development. If you need something production-gr
 
 ## How it works
 
-```mermaid
-graph LR
-    A["Create tasks\n(Claude + skill)"] --> B["Move to TODO"]
-    B --> C["Workers pick them up"]
-    C --> D["Git worktree\n+ branch"]
-    D --> E["Claude Code\nimplements"]
-    E --> F["PR created"]
-```
-
 You create tasks using Claude Code with the included skill or manually. Move them to TODO when they're ready. Worker agents poll for tasks, spin up isolated git worktrees, implement the work, and open PRs. You review and merge.
 
 You can also create research tasks where the agent will not implement anything, no PR, just plan mode and will spawn other tasks.
