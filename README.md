@@ -36,7 +36,7 @@ Tasks start as drafts. Moving one to **TODO** is the dispatch signal — a worke
 
 A few things worth knowing:
 
-- **Statuses.** Poor wording, but: **Done** means the PR has been opened, **Archived** means the PR has been merged.
+- **Statuses.** Poor wording, but: **Done** means the PR has been opened, **Archived** means the PR has been merged. The **Archive Merged** button on the board auto-moves any Done tasks whose PRs have been merged.
 - **Dependencies.** A task with unresolved prerequisites won't be picked up until they're archived (i.e. merged).
 - **Research tasks.** Some tasks are plan-only: the agent stays in plan mode, writes no code, and spawns follow-up tasks instead of opening a PR.
 - **Session reuse.** Agents reuse the same Claude session across a handful of tasks, so context carries over.
