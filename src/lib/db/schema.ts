@@ -47,6 +47,19 @@ export const agents = sqliteTable("agents", {
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
 
+export const agentHistory = sqliteTable("agent_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agentId: integer("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").notNull(),
+  taskId: integer("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+  tasksCompletedInSession: integer("tasks_completed_in_session")
+    .notNull()
+    .default(0),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+});
+
 export const taskComments = sqliteTable("task_comments", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   taskId: integer("task_id")
