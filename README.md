@@ -73,11 +73,10 @@ Once linked, you can ask Claude to create tasks, list projects, update statuses 
 ## Spawn workers
 
 ```bash
+# Add to your .zshrc — replace $PWD with the absolute path to this repo
 export PATH="$PWD/bin:$PATH"
 the-stuff-worker
 ```
-
-Add the `export` line to your `.zshrc` (or equivalent) — replace `$PWD` with the absolute path to this repo so it resolves anywhere.
 
 It'll prompt you to pick a project, then start polling for TODO tasks.
 
