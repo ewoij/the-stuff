@@ -25,6 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const RANGE_OPTIONS = [
+  { value: "8", label: "Last 8h" },
   { value: "24", label: "Last 24h" },
   { value: "48", label: "Last 48h" },
   { value: "72", label: "Last 3 days" },
@@ -49,6 +50,22 @@ function formatHour(bucket: string): string {
     " " +
     d.toLocaleTimeString([], { hour: "numeric" })
   );
+}
+
+function getTickInterval(hours: number): number {
+  if (hours <= 8) return 2;
+  if (hours <= 24) return 6;
+  if (hours <= 72) return 12;
+  return 24;
+}
+
+function formatTickLabel(bucket: string, showDate: boolean): string {
+  const d = new Date(bucket.replace(" ", "T") + ":00");
+  if (isNaN(d.getTime())) return bucket;
+  if (showDate && d.getHours() === 0) {
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+  return `${d.getHours()}:00`;
 }
 
 interface ActivityTimelineProps {
@@ -109,6 +126,23 @@ export function ActivityTimeline({ projectId }: ActivityTimelineProps) {
 
     return { filled, maxPerStatus };
   }, [buckets, hours]);
+
+  const ticks = useMemo(() => {
+    const interval = getTickInterval(hours);
+    const showDate = hours > 48;
+    const result: { index: number; label: string }[] = [];
+    for (let i = 0; i < filled.length; i++) {
+      const d = new Date(filled[i].bucket.replace(" ", "T") + ":00");
+      if (isNaN(d.getTime())) continue;
+      if (d.getHours() % interval === 0) {
+        result.push({
+          index: i,
+          label: formatTickLabel(filled[i].bucket, showDate),
+        });
+      }
+    }
+    return result.filter((t) => t.index > 0 && t.index < filled.length - 2);
+  }, [filled, hours]);
 
   function toggleStatus(status: string) {
     setHiddenStatuses((prev) => {
@@ -206,7 +240,8 @@ export function ActivityTimeline({ projectId }: ActivityTimelineProps) {
                       visibleStatuses.map((status) => {
                         const count = b.counts[status] ?? 0;
                         const max = maxPerStatus[status] ?? 0;
-                        if (count === 0) return null;
+                        if (count === 0)
+                          return <div key={status} className="flex-1 min-w-0" />;
                         const pct = max > 0 ? count / max : 0;
                         const barH = Math.max(pct * 72, 4);
                         return (
@@ -238,11 +273,22 @@ export function ActivityTimeline({ projectId }: ActivityTimelineProps) {
             )}
           </div>
 
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-muted-foreground">
-              {formatHour(filled[0]?.bucket ?? "")}
+          <div className="relative mt-1 h-4">
+            {ticks.map((tick) => (
+              <span
+                key={tick.index}
+                className="absolute text-[10px] text-muted-foreground"
+                style={{
+                  left: `${((tick.index + 0.5) / filled.length) * 100}%`,
+                  transform: "translateX(-50%)",
+                }}
+              >
+                {tick.label}
+              </span>
+            ))}
+            <span className="absolute right-0 text-[10px] text-muted-foreground">
+              Now
             </span>
-            <span className="text-[10px] text-muted-foreground">Now</span>
           </div>
 
           <div className="flex items-center gap-3 mt-2">
