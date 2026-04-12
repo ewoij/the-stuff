@@ -215,7 +215,7 @@ while true; do
   # 1. Fetch next task
   RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$SERVER_URL/api/agent/next-task" \
     -H 'Content-Type: application/json' \
-    -d "{\"projectId\": $PROJECT_ID}")
+    -d "{\"projectId\": $PROJECT_ID, \"agentId\": $AGENT_ID}")
 
   HTTP_CODE=$(echo "$RESPONSE" | tail -1)
   BODY=$(echo "$RESPONSE" | sed '$d')

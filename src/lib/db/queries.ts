@@ -5,6 +5,7 @@ import {
   taskComments,
   taskDependencies,
   agents,
+  agentHistory,
 } from "./schema";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -156,6 +157,20 @@ export const latestStatusSubquery = db
   .groupBy(taskStatus.taskId)
   .as("latest_status");
 
+export const AGENT_ALIVE_THRESHOLD_SECONDS = 60;
+
+export const latestAgentPerTaskSubquery = db
+  .select({
+    taskId: agentHistory.taskId,
+    agentId: agentHistory.agentId,
+    rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${agentHistory.taskId} ORDER BY ${agentHistory.id} DESC)`.as(
+      "rn"
+    ),
+  })
+  .from(agentHistory)
+  .where(sql`${agentHistory.taskId} IS NOT NULL`)
+  .as("last_ah");
+
 /**
  * Returns the set of task IDs that are blocked by unresolved dependencies.
  * A task is blocked if any dependency has a non-ARCHIVED status or no status at all.
@@ -194,6 +209,8 @@ export async function getBlockedTaskIds(): Promise<Set<number>> {
 export async function getProjectTasksWithStatus(
   projectId: number
 ): Promise<TaskWithStatus[]> {
+  const lastAgent = alias(agents, "last_agent");
+
   const rows = await db
     .select({
       id: tasks.id,
@@ -208,10 +225,24 @@ export async function getProjectTasksWithStatus(
       updatedAt: tasks.updatedAt,
       currentStatus: latestStatusSubquery.status,
       agentName: agents.name,
+      lastAgentId: latestAgentPerTaskSubquery.agentId,
+      lastAgentName: lastAgent.name,
+      lastAgentAlive:
+        sql<boolean>`CASE WHEN ${lastAgent.id} IS NOT NULL AND (strftime('%s','now') - strftime('%s', ${lastAgent.lastHeartbeat})) <= ${AGENT_ALIVE_THRESHOLD_SECONDS} THEN 1 ELSE 0 END`.as(
+          "last_agent_alive"
+        ),
     })
     .from(tasks)
     .leftJoin(latestStatusSubquery, eq(tasks.id, latestStatusSubquery.taskId))
     .leftJoin(agents, eq(tasks.id, agents.currentTaskId))
+    .leftJoin(
+      latestAgentPerTaskSubquery,
+      and(
+        eq(tasks.id, latestAgentPerTaskSubquery.taskId),
+        sql`${latestAgentPerTaskSubquery.rn} = 1`
+      )
+    )
+    .leftJoin(lastAgent, eq(latestAgentPerTaskSubquery.agentId, lastAgent.id))
     .where(eq(tasks.projectId, projectId))
     .orderBy(tasks.sortOrder, desc(tasks.createdAt));
 
@@ -219,6 +250,7 @@ export async function getProjectTasksWithStatus(
 
   return rows.map((row) => ({
     ...row,
+    lastAgentAlive: !!row.lastAgentAlive,
     isBlocked: blockedIds.has(row.id),
   }));
 }
