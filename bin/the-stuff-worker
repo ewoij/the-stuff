@@ -439,19 +439,33 @@ PROMPT_EOF
       "${SESSION_FLAGS[@]}" \
       --verbose --output-format stream-json | \
       jq -r --unbuffered '
+        def truncate(n): if length > n then .[:n] + "…" else . end;
+        def basename: split("/") | last;
         if .type == "system" and (.subtype // empty) == "" then
           "[claude] Session started"
         elif .type == "assistant" then
-          [.message.content[]? | select(.type=="tool_use") | .name] |
-          if length > 0 then
-            # Skip read-only tools — only show actions that modify state
-            map(select(. != "Read" and . != "Glob" and . != "Grep" and . != "Explore")) |
-            if length > 0 then
-              "[claude] " + join(", ")
-            else empty end
-          else empty end
+          [.message.content[]? | select(.type == "text") | .text |
+            split("\n") | map(select(length > 0)) | first // empty |
+            truncate(100) |
+            "[claude] » " + .
+          ] + [.message.content[]? | select(.type == "tool_use") |
+            if .name == "Read" or .name == "Glob" or .name == "Grep" then empty
+            elif .name == "Bash" then
+              "[claude] Bash: " + ((.input.description // (.input.command | split("\n") | first | truncate(80))) | truncate(100))
+            elif .name == "Edit" then
+              "[claude] Edit " + (.input.file_path | basename)
+            elif .name == "Write" then
+              "[claude] Write " + (.input.file_path | basename)
+            elif .name == "Agent" then
+              "[claude] Agent(" + (.input.subagent_type // "general") + ") " + ((.input.description // "") | truncate(80))
+            elif .name == "Skill" then
+              "[claude] Skill " + (.input.skill // "")
+            else
+              "[claude] " + .name
+            end
+          ] | .[]? // empty
         elif .type == "result" then
-          "[claude] Done — \(.num_turns // "?") turns, \(.duration_ms // "?")ms, $\(.total_cost_usd // "?")"
+          "[claude] Done — \(.num_turns // "?") turns, $\(.total_cost_usd // "?")"
         else empty end
       ' 2>/dev/null
   )
