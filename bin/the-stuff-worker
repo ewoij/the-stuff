@@ -7,10 +7,11 @@ set -euo pipefail
 # Usage: the-stuff-worker [project-id] [options]
 #
 # Options:
-#   --server URL      Server URL (default: $THE_STUFF_URL or http://localhost:3000)
-#   --base-branch BR  Branch to create worktrees from (default: main)
-#   --max-tasks N     Maximum number of tasks to process (default: unlimited)
-#   --poll-interval S Seconds between polling when no tasks available (default: 30)
+#   --server URL               Server URL (default: $THE_STUFF_URL or http://localhost:3000)
+#   --base-branch BR           Branch to create worktrees from (default: main)
+#   --max-tasks N              Maximum number of tasks to process (default: unlimited)
+#   --poll-interval S          Seconds between polling when no tasks available (default: 30)
+#   --session-reset-every N    Reset Claude session after N tasks (default: 5, 0 to disable)
 #
 # Environment:
 #   THE_STUFF_URL   Server URL (default: http://localhost:3000)
@@ -20,16 +21,19 @@ SERVER_URL="${THE_STUFF_URL:-http://localhost:3000}"
 BASE_BRANCH="main"
 MAX_TASKS=""
 POLL_INTERVAL=30
+SESSION_RESET_EVERY=5
 CURRENT_TASK_ID=""
 WORKTREE_DIR=""
 AGENT_ID=""
 AGENT_NAME=""
 HEARTBEAT_PID=""
+SESSION_ID=""
+SESSION_TASK_COUNT=0
 
 # --- Argument parsing ------------------------------------------------------
 
 usage() {
-  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH] [--max-tasks N] [--poll-interval SECONDS]"
+  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH] [--max-tasks N] [--poll-interval SECONDS] [--session-reset-every N]"
   echo ""
   echo "If project-id is omitted, you will be prompted to select a project."
   exit 1
@@ -49,6 +53,7 @@ while [[ $# -gt 0 ]]; do
     --base-branch) BASE_BRANCH="$2"; shift 2 ;;
     --max-tasks) MAX_TASKS="$2"; shift 2 ;;
     --poll-interval) POLL_INTERVAL="$2"; shift 2 ;;
+    --session-reset-every) SESSION_RESET_EVERY="$2"; shift 2 ;;
     --help|-h) usage ;;
     *) usage ;;
   esac
@@ -180,6 +185,24 @@ echo "[worker] Server: $SERVER_URL"
 echo "[worker] Base branch: $BASE_BRANCH"
 [[ -n "$MAX_TASKS" ]] && echo "[worker] Max tasks: $MAX_TASKS"
 echo "[worker] Poll interval: ${POLL_INTERVAL}s"
+if [[ "$SESSION_RESET_EVERY" -gt 0 ]]; then
+  echo "[worker] Session reset: every $SESSION_RESET_EVERY tasks"
+else
+  echo "[worker] Session reset: disabled (single session for entire worker run)"
+fi
+
+# Create a single persistent worktree for this worker. All tasks run in this
+# same directory (branch-switched between tasks). This keeps Claude's cwd
+# stable across tasks so sessions can be resumed (session storage is keyed
+# by cwd).
+git fetch origin "$BASE_BRANCH" 2>/dev/null || true
+git worktree prune 2>/dev/null || true
+WORKTREE_DIR="$(mktemp -d)/worker-${AGENT_ID}"
+if ! git worktree add --detach "$WORKTREE_DIR" "origin/$BASE_BRANCH" 2>&1; then
+  echo "[worker] Failed to create worktree at $WORKTREE_DIR"
+  exit 1
+fi
+echo "[worker] Worktree: $WORKTREE_DIR"
 echo ""
 
 TASK_COUNT=0
@@ -224,16 +247,13 @@ while true; do
   [[ -n "$TASK_CONTENT" ]] && echo "[worker] Description: $TASK_CONTENT"
   echo "================================================================"
 
-  # 3. Create worktree with a task branch
+  # 3. Check out the task branch in the persistent worktree
   SLUG=$(slugify "$TASK_TITLE")
   BRANCH_NAME="task-${TASK_ID}/${SLUG}"
-  WORKTREE_DIR="$(mktemp -d)/task-${TASK_ID}"
 
-  echo "[worker] Creating worktree at $WORKTREE_DIR (branch: $BRANCH_NAME)"
+  echo "[worker] Checking out branch $BRANCH_NAME in $WORKTREE_DIR"
 
   git fetch origin "$BASE_BRANCH" 2>/dev/null || true
-  # Clean up stale worktree references from previous crashed runs
-  git worktree prune 2>/dev/null || true
 
   BRANCH_EXISTS=false
   if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null || \
@@ -243,23 +263,32 @@ while true; do
 
   EXISTING_PR_URL=""
 
+  # Reset worktree to a clean state before switching branches (defensive —
+  # claude should have committed everything, but just in case)
+  (
+    cd "$WORKTREE_DIR" || exit 1
+    git reset --hard 2>/dev/null || true
+    git clean -fd 2>/dev/null || true
+  )
+
   if $BRANCH_EXISTS; then
     echo "[worker] Resuming existing branch $BRANCH_NAME"
-    # Check out the existing branch into a new worktree
-    git worktree add "$WORKTREE_DIR" "$BRANCH_NAME" 2>/dev/null || {
-      # Local branch may not exist yet — create from remote tracking branch
-      git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "origin/$BRANCH_NAME" 2>/dev/null || {
-        echo "[worker] Failed to create worktree. Releasing task."
-        curl -s -X POST "$SERVER_URL/api/agent/release-task" \
-          -H 'Content-Type: application/json' \
-          -d "{\"taskId\": $TASK_ID}" > /dev/null
-        CURRENT_TASK_ID=""
-        WORKTREE_DIR=""
-        continue
-      }
-    }
-    # Rebase onto latest base branch so the worktree is up to date
-    (cd "$WORKTREE_DIR" && git rebase "origin/$BASE_BRANCH" 2>/dev/null) || true
+    if ! (
+      cd "$WORKTREE_DIR" || exit 1
+      # Fetch latest of the branch from remote, then check it out
+      git fetch origin "$BRANCH_NAME" 2>/dev/null || true
+      git checkout -B "$BRANCH_NAME" "origin/$BRANCH_NAME" 2>/dev/null || \
+        git checkout "$BRANCH_NAME"
+      # Rebase onto latest base branch so the worktree is up to date
+      git rebase "origin/$BASE_BRANCH" 2>/dev/null || true
+    ); then
+      echo "[worker] Failed to check out branch. Releasing task."
+      curl -s -X POST "$SERVER_URL/api/agent/release-task" \
+        -H 'Content-Type: application/json' \
+        -d "{\"taskId\": $TASK_ID}" > /dev/null
+      CURRENT_TASK_ID=""
+      continue
+    fi
 
     # Look up existing PR
     EXISTING_PR_URL=$(cd "$WORKTREE_DIR" && gh pr view "$BRANCH_NAME" --json url -q '.url' 2>/dev/null) || true
@@ -267,15 +296,17 @@ while true; do
       echo "[worker] Found existing PR: $EXISTING_PR_URL"
     fi
   else
-    git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "origin/$BASE_BRANCH" 2>/dev/null || {
-      echo "[worker] Failed to create worktree. Releasing task."
+    if ! (
+      cd "$WORKTREE_DIR" || exit 1
+      git checkout -B "$BRANCH_NAME" "origin/$BASE_BRANCH"
+    ); then
+      echo "[worker] Failed to create branch. Releasing task."
       curl -s -X POST "$SERVER_URL/api/agent/release-task" \
         -H 'Content-Type: application/json' \
         -d "{\"taskId\": $TASK_ID}" > /dev/null
       CURRENT_TASK_ID=""
-      WORKTREE_DIR=""
       continue
-    }
+    fi
   fi
 
   echo ""
@@ -382,11 +413,26 @@ PROMPT_EOF
     -d "{\"agentId\": $AGENT_ID, \"taskId\": $TASK_ID}" > /dev/null 2>&1 || true
   start_heartbeat "$AGENT_ID" "$TASK_ID"
 
-  # 6. Run Claude Code inside the worktree (with streaming status output)
+  # 6. Determine session flags
+  # If SESSION_ID is empty or we've hit the reset threshold, start a new session
+  if [[ -z "$SESSION_ID" ]] || \
+     [[ "$SESSION_RESET_EVERY" -gt 0 && "$SESSION_TASK_COUNT" -ge "$SESSION_RESET_EVERY" ]]; then
+    SESSION_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
+    SESSION_TASK_COUNT=0
+    SESSION_FLAGS=(--session-id "$SESSION_ID")
+    echo "[worker] Starting new Claude session: $SESSION_ID"
+  else
+    SESSION_FLAGS=(--resume "$SESSION_ID")
+    echo "[worker] Resuming Claude session: $SESSION_ID (task $((SESSION_TASK_COUNT + 1)) of $SESSION_RESET_EVERY in this session)"
+  fi
+
+  # 7. Run Claude Code inside the worktree (with streaming status output)
+  # The worktree path is stable across tasks, so sessions can be resumed.
   set +e
   (
     cd "$WORKTREE_DIR"
-    claude -p "$PROMPT" --dangerously-skip-permissions --no-session-persistence \
+    claude -p "$PROMPT" --dangerously-skip-permissions \
+      "${SESSION_FLAGS[@]}" \
       --verbose --output-format stream-json | \
       jq -r --unbuffered '
         if .type == "system" and (.subtype // empty) == "" then
@@ -408,6 +454,9 @@ PROMPT_EOF
   CLAUDE_EXIT=$?
   set -e
 
+  # Track session usage — each Claude call adds to session history
+  SESSION_TASK_COUNT=$((SESSION_TASK_COUNT + 1))
+
   # Stop periodic heartbeat and clear current task
   stop_heartbeat
   curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
@@ -423,9 +472,6 @@ PROMPT_EOF
     TASK_COUNT=$((TASK_COUNT + 1))
     if [[ -n "$MAX_TASKS" && "$TASK_COUNT" -ge "$MAX_TASKS" ]]; then
       echo "[worker] Reached max tasks limit ($MAX_TASKS). Completed $TASK_COUNT task(s)."
-      # Clean up worktree before exiting
-      git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
-      WORKTREE_DIR=""
       CURRENT_TASK_ID=""
       exit 0
     fi
@@ -441,10 +487,7 @@ PROMPT_EOF
       -d "{\"taskId\": $TASK_ID}" > /dev/null
   fi
 
-  # 7. Clean up worktree
-  echo "[worker] Removing worktree..."
-  git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
-  WORKTREE_DIR=""
+  # 7. Clear current task (worktree is reused across tasks)
   CURRENT_TASK_ID=""
   echo ""
 done
