@@ -72,9 +72,15 @@ Once linked, you can ask Claude to create tasks, list projects, update statuses 
 
 ## Spawn workers
 
+Add this to your `.zshrc` (or equivalent) — replace `$PWD` with the absolute path to this repo:
+
 ```bash
-# Add to your .zshrc — replace $PWD with the absolute path to this repo
 export PATH="$PWD/bin:$PATH"
+```
+
+Then, from any git repo, spawn a worker:
+
+```bash
 the-stuff-worker
 ```
 
