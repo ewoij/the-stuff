@@ -6,23 +6,15 @@ Distribute work to Claude agents.
 
 ## TL;DR
 
-```bash
-# 1. Install
-npm install
-npm run db:push
-ln -s "$PWD/.claude/skills/the-stuff" ~/.claude/skills/the-stuff
-
-# 2. Run
-npm run dev
-```
-
-Then:
-
-3. Create a project on the board
-4. Spawn agents from the repo you want them to work in: `cd /path/to/your-repo && the-stuff-worker`
-5. Ask Claude to create tasks ("create a task to…")
-6. Move them to **TODO** to dispatch
-7. Ask Claude to review and merge the PRs
+1. Install dependencies: `npm install`
+2. Set up the database: `npm run db:push`
+3. Install the Claude Code skill: `ln -s "$PWD/.claude/skills/the-stuff" ~/.claude/skills/the-stuff`
+4. Start the app: `npm run dev`
+5. Create a project on the board
+6. Spawn agents from the repo you want them to work in: `cd /path/to/your-repo && the-stuff-worker`
+7. Ask Claude to create tasks ("create a task to…")
+8. Move them to **TODO** to dispatch
+9. Ask Claude to review and merge the PRs
 
 ## How it works
 
