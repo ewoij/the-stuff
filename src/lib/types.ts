@@ -31,6 +31,9 @@ export type ProjectWithStats = Project & {
 export type TaskWithStatus = Task & {
   currentStatus: string | null;
   agentName: string | null;
+  lastAgentId: number | null;
+  lastAgentName: string | null;
+  lastAgentAlive: boolean;
   isBlocked?: boolean;
 };
 export type TaskDetail = Task & {

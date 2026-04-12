@@ -1,19 +1,16 @@
 import { NextRequest } from "next/server";
 import { db, sqlite } from "@/lib/db";
-import { tasks, taskStatus } from "@/lib/db/schema";
+import { tasks, taskStatus, agents, agentHistory } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { jsonError, jsonOk } from "@/lib/api-response";
+import { AGENT_ALIVE_THRESHOLD_SECONDS } from "@/lib/db/queries";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const projectId: number | undefined = body.projectId;
+  const agentId: number | undefined = body.agentId;
 
-  // Use a synchronous transaction for atomicity.
-  // SQLite's single-writer model ensures no two agents grab the same task.
   const result = sqlite.transaction(() => {
-    // Find the oldest TODO task that has no unresolved dependencies.
-    // A dependency is unresolved if the depends_on task's latest status
-    // is NOT 'ARCHIVED'.
     const candidate = db
       .select({ id: tasks.id })
       .from(tasks)
@@ -29,11 +26,34 @@ export async function POST(request: NextRequest) {
           .as("latest_status"),
         eq(tasks.id, sql`latest_status.task_id`)
       )
+      .leftJoin(
+        db
+          .select({
+            taskId: agentHistory.taskId,
+            agentId: agentHistory.agentId,
+            rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${agentHistory.taskId} ORDER BY ${agentHistory.id} DESC)`.as(
+              "rn"
+            ),
+          })
+          .from(agentHistory)
+          .where(sql`${agentHistory.taskId} IS NOT NULL`)
+          .as("last_ah"),
+        and(
+          eq(tasks.id, sql`last_ah.task_id`),
+          sql`last_ah.rn = 1`
+        )
+      )
+      .leftJoin(
+        agents,
+        and(
+          eq(agents.id, sql`last_ah.agent_id`),
+          sql`(strftime('%s','now') - strftime('%s', ${agents.lastHeartbeat})) <= ${AGENT_ALIVE_THRESHOLD_SECONDS}`
+        )
+      )
       .where(
         and(
           sql`latest_status.status = 'TODO'`,
           projectId ? eq(tasks.projectId, projectId) : undefined,
-          // Exclude tasks that have any dependency whose status is not ARCHIVED
           sql`NOT EXISTS (
             SELECT 1 FROM task_dependencies td
             INNER JOIN (
@@ -43,28 +63,36 @@ export async function POST(request: NextRequest) {
             WHERE td.task_id = ${tasks.id}
             AND dep_status.status NOT IN ('ARCHIVED')
           )`,
-          // Also exclude tasks that depend on tasks with no status at all
           sql`NOT EXISTS (
             SELECT 1 FROM task_dependencies td
             WHERE td.task_id = ${tasks.id}
             AND NOT EXISTS (
               SELECT 1 FROM task_status WHERE task_id = td.depends_on_id
             )
-          )`
+          )`,
+          agentId
+            ? sql`(${agents.id} IS NULL OR ${agents.id} = ${agentId})`
+            : undefined
         )
       )
-      .orderBy(tasks.sortOrder, tasks.createdAt)
+      .orderBy(
+        ...(agentId
+          ? [
+              sql`CASE WHEN ${agents.id} = ${agentId} THEN 0 ELSE 1 END`,
+              tasks.sortOrder,
+              tasks.createdAt,
+            ]
+          : [tasks.sortOrder, tasks.createdAt])
+      )
       .limit(1)
       .get();
 
     if (!candidate) return null;
 
-    // Set status to PROGRESS
     db.insert(taskStatus)
       .values({ taskId: candidate.id, status: "PROGRESS" })
       .run();
 
-    // Compute next sort_order for the project and update
     const SORT_ORDER_GAP = 65536;
     const task = db.select({ projectId: tasks.projectId }).from(tasks).where(eq(tasks.id, candidate.id)).get()!;
     const maxResult = db
@@ -74,13 +102,11 @@ export async function POST(request: NextRequest) {
       .get();
     const nextSortOrder = (maxResult?.maxOrder ?? 0) + SORT_ORDER_GAP;
 
-    // Update the task's sortOrder and updatedAt
     db.update(tasks)
       .set({ sortOrder: nextSortOrder, updatedAt: sql`(current_timestamp)` })
       .where(eq(tasks.id, candidate.id))
       .run();
 
-    // Return the full task
     return db.select().from(tasks).where(eq(tasks.id, candidate.id)).get();
   })();
 

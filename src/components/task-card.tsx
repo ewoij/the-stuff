@@ -85,12 +85,20 @@ export function TaskCard({ task, onStatusChange, onClick, isDragOverlay }: TaskC
             {task.content}
           </p>
         )}
-        {task.agentName && (
+        {(task.agentName || task.lastAgentName) && (
           <div className="flex items-center gap-1 pt-1">
-            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md px-1.5 py-0.5">
-              <Bot className="size-2.5 shrink-0" />
-              {task.agentName}
-            </span>
+            {task.agentName && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md px-1.5 py-0.5">
+                <Bot className="size-2.5 shrink-0" />
+                {task.agentName}
+              </span>
+            )}
+            {task.lastAgentName && !task.agentName && (
+              <span className={`inline-flex items-center gap-1 text-[10px] rounded-md px-1.5 py-0.5 ${task.lastAgentAlive ? "text-blue-600 dark:text-blue-400 bg-blue-500/10" : "text-muted-foreground/60 bg-muted/40"}`}>
+                <Bot className="size-2.5 shrink-0" />
+                {task.lastAgentName}
+              </span>
+            )}
           </div>
         )}
         {(task.branch || task.pr) && (
