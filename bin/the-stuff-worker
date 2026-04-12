@@ -120,7 +120,7 @@ start_heartbeat() {
       sleep 15
       curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
         -H 'Content-Type: application/json' \
-        -d "{\"agentId\": $agent_id, \"taskId\": $task_id}" > /dev/null 2>&1 || true
+        -d "{\"agentId\": $agent_id, \"taskId\": $task_id, \"sessionId\": \"$WORKER_SESSION_ID\", \"tasksCompletedInSession\": $TASKS_COMPLETED}" > /dev/null 2>&1 || true
     done
   ) &
   HEARTBEAT_PID=$!
@@ -179,7 +179,11 @@ fi
 AGENT_ID=$(echo "$REGISTER_BODY" | jq -r '.id')
 AGENT_NAME=$(echo "$REGISTER_BODY" | jq -r '.name')
 
+WORKER_SESSION_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
+TASKS_COMPLETED=0
+
 echo "[worker] Registered as $AGENT_NAME (#$AGENT_ID)"
+echo "[worker] Worker session: $WORKER_SESSION_ID"
 echo "[worker] Starting worker for project #$PROJECT_ID"
 echo "[worker] Server: $SERVER_URL"
 echo "[worker] Base branch: $BASE_BRANCH"
@@ -222,7 +226,7 @@ while true; do
     # Send heartbeat to keep agent alive while idle
     curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
       -H 'Content-Type: application/json' \
-      -d "{\"agentId\": $AGENT_ID}" > /dev/null 2>&1 || true
+      -d "{\"agentId\": $AGENT_ID, \"sessionId\": \"$WORKER_SESSION_ID\", \"tasksCompletedInSession\": $TASKS_COMPLETED}" > /dev/null 2>&1 || true
     sleep "$POLL_INTERVAL"
     continue
   fi
@@ -410,7 +414,7 @@ PROMPT_EOF
   # 5. Send heartbeat with task ID and start periodic heartbeat
   curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
     -H 'Content-Type: application/json' \
-    -d "{\"agentId\": $AGENT_ID, \"taskId\": $TASK_ID}" > /dev/null 2>&1 || true
+    -d "{\"agentId\": $AGENT_ID, \"taskId\": $TASK_ID, \"sessionId\": \"$WORKER_SESSION_ID\", \"tasksCompletedInSession\": $TASKS_COMPLETED}" > /dev/null 2>&1 || true
   start_heartbeat "$AGENT_ID" "$TASK_ID"
 
   # 6. Determine session flags
@@ -461,7 +465,7 @@ PROMPT_EOF
   stop_heartbeat
   curl -s -X POST "$SERVER_URL/api/agents/heartbeat" \
     -H 'Content-Type: application/json' \
-    -d "{\"agentId\": $AGENT_ID}" > /dev/null 2>&1 || true
+    -d "{\"agentId\": $AGENT_ID, \"sessionId\": \"$WORKER_SESSION_ID\", \"tasksCompletedInSession\": $TASKS_COMPLETED}" > /dev/null 2>&1 || true
 
   # 7. Check if task was completed
   STATUS=$(get_task_status "$TASK_ID")
@@ -470,6 +474,7 @@ PROMPT_EOF
     echo ""
     echo "[worker] Task #$TASK_ID completed successfully."
     TASK_COUNT=$((TASK_COUNT + 1))
+    TASKS_COMPLETED=$TASK_COUNT
     if [[ -n "$MAX_TASKS" && "$TASK_COUNT" -ge "$MAX_TASKS" ]]; then
       echo "[worker] Reached max tasks limit ($MAX_TASKS). Completed $TASK_COUNT task(s)."
       CURRENT_TASK_ID=""
