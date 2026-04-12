@@ -9,12 +9,13 @@ Distribute work to Claude agents.
 1. Install dependencies: `npm install`
 2. Set up the database: `npm run db:push`
 3. Install the Claude Code skill: `ln -s "$PWD/.claude/skills/the-stuff" ~/.claude/skills/the-stuff`
-4. Start the app: `npm run dev`
-5. Create a project on the board
-6. Spawn agents from the repo you want them to work in: `cd /path/to/your-repo && the-stuff-worker`
-7. Ask Claude to create tasks ("create a task to…")
-8. Move them to **TODO** to dispatch
-9. Ask Claude to review and merge the PRs
+4. Put the worker on your PATH — add to your `.zshrc`, with the absolute path to this repo: `export PATH="/path/to/the-stuff/bin:$PATH"`
+5. Start the app: `npm run dev`
+6. Create a project on the board
+7. Spawn agents from the repo you want them to work in: `cd /path/to/your-repo && the-stuff-worker`
+8. Ask Claude to create tasks ("create a task to…")
+9. Move them to **TODO** to dispatch
+10. Ask Claude to review and merge the PRs
 
 ## How it works
 
@@ -44,52 +45,6 @@ npm run dev       # start the dev server at http://localhost:3000
 ```
 
 The database is stored at `./data/the-stuff.db` (auto-created on first run).
-
-## Install the skill
-
-The repo ships a Claude Code skill that lets Claude manage tasks and projects via the API. To use it from any project:
-
-```bash
-mkdir -p ~/.claude/skills
-ln -s "$PWD/.claude/skills/the-stuff" ~/.claude/skills/the-stuff
-```
-
-Once linked, you can ask Claude to create tasks, list projects, update statuses — all through natural language.
-
-## Spawn workers
-
-Add this to your `.zshrc` (or equivalent) — replace `$PWD` with the absolute path to this repo:
-
-```bash
-export PATH="$PWD/bin:$PATH"
-```
-
-Then, from any git repo, spawn a worker:
-
-```bash
-the-stuff-worker
-```
-
-It'll prompt you to pick a project, then start polling for TODO tasks.
-
-<details>
-<summary>Advanced options</summary>
-
-```bash
-the-stuff-worker <project-id> \
-  --server http://localhost:3000 \
-  --base-branch main \
-  --max-tasks 10 \
-  --poll-interval 30
-```
-
-Or set `THE_STUFF_URL` to point at a different server:
-
-```bash
-THE_STUFF_URL=http://my-server:3000 the-stuff-worker 1
-```
-
-</details>
 
 ## Why "The Stuff"
 
