@@ -1,26 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { NavBar } from "@/components/nav-bar";
 import { KanbanBoard } from "@/components/kanban-board";
 import { TaskFormDialog } from "@/components/task-form-dialog";
 import { TaskDetailDialog } from "@/components/task-detail-dialog";
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { DeleteProjectDialog } from "@/components/delete-project-dialog";
 import { Button } from "@/components/ui/button";
 import { useTasks } from "@/lib/hooks/use-tasks";
 import { useAgents } from "@/lib/hooks/use-agents";
-import { Plus, Archive, Bot } from "lucide-react";
+import { Plus, Archive, Bot, Trash2 } from "lucide-react";
 
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = Number(params.id);
   const [isDragging, setIsDragging] = useState(false);
+  const router = useRouter();
   const { tasks, loading, refresh, reorderTask } = useTasks(projectId, isDragging);
   const { agents } = useAgents(projectId);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   async function handleStatusChange(
     taskId: number,
@@ -66,6 +69,14 @@ export default function ProjectPage() {
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="size-4 mr-2" />
               New Task
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDeleteOpen(true)}
+              title="Delete project"
+            >
+              <Trash2 className="size-4" />
             </Button>
           </div>
         </div>
@@ -134,6 +145,14 @@ export default function ProjectPage() {
             if (!open) setSelectedTaskId(null);
           }}
           onChanged={refresh}
+        />
+
+        <DeleteProjectDialog
+          projectId={projectId}
+          projectName="this project"
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          onDeleted={() => router.push("/")}
         />
       </main>
     </>

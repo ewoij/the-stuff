@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -10,11 +11,21 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { DeleteProjectDialog } from "@/components/delete-project-dialog";
+import {
   CheckCircle2,
   Circle,
   Clock,
   Loader2,
   Bot,
+  MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 import type { ProjectWithStats } from "@/lib/types";
 
@@ -65,78 +76,113 @@ function formatRelativeTime(dateStr: string): string {
 
 interface ProjectCardProps {
   project: ProjectWithStats;
+  onDeleted: () => void;
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const initials = getInitials(project.name);
   const avatarColor = getAvatarColor(project.name);
   const totalTasks = project.taskCounts.total;
 
   return (
-    <Link href={`/projects/${project.id}`} className="group">
-      <Card className="h-full transition-all duration-200 hover:ring-foreground/20 hover:shadow-md">
-        <CardHeader>
-          <div className="flex items-start gap-3">
-            <div
-              className={`${avatarColor} flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white`}
-            >
-              {initials}
+    <>
+      <Link href={`/projects/${project.id}`} className="group">
+        <Card className="h-full transition-all duration-200 hover:ring-foreground/20 hover:shadow-md">
+          <CardHeader>
+            <div className="flex items-start gap-3">
+              <div
+                className={`${avatarColor} flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white`}
+              >
+                {initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <CardTitle className="truncate">{project.name}</CardTitle>
+                {project.content && (
+                  <CardDescription className="mt-0.5 line-clamp-2">
+                    {project.content}
+                  </CardDescription>
+                )}
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e: React.MouseEvent) => e.preventDefault()}
+                    />
+                  }
+                >
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="size-4" />
+                    Delete project
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <div className="min-w-0 flex-1">
-              <CardTitle className="truncate">{project.name}</CardTitle>
-              {project.content && (
-                <CardDescription className="mt-0.5 line-clamp-2">
-                  {project.content}
-                </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              {totalTasks === 0 && project.activeAgents === 0 ? (
+                <span>No tasks yet</span>
+              ) : (
+                <>
+                  {project.taskCounts.todo > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Circle className="size-3" />
+                      {project.taskCounts.todo} to do
+                    </span>
+                  )}
+                  {project.taskCounts.inProgress > 0 && (
+                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                      <Loader2 className="size-3" />
+                      {project.taskCounts.inProgress} in progress
+                    </span>
+                  )}
+                  {project.taskCounts.done > 0 && (
+                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="size-3" />
+                      {project.taskCounts.done} done
+                    </span>
+                  )}
+                </>
               )}
             </div>
-          </div>
-        </CardHeader>
+          </CardContent>
 
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            {totalTasks === 0 && project.activeAgents === 0 ? (
-              <span>No tasks yet</span>
-            ) : (
-              <>
-                {project.taskCounts.todo > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Circle className="size-3" />
-                    {project.taskCounts.todo} to do
-                  </span>
-                )}
-                {project.taskCounts.inProgress > 0 && (
-                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                    <Loader2 className="size-3" />
-                    {project.taskCounts.inProgress} in progress
-                  </span>
-                )}
-                {project.taskCounts.done > 0 && (
-                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="size-3" />
-                    {project.taskCounts.done} done
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-        </CardContent>
-
-        <CardFooter className="text-xs text-muted-foreground">
-          <div className="flex w-full items-center justify-between">
-            <span className="flex items-center gap-1">
-              <Clock className="size-3" />
-              {formatRelativeTime(project.lastActivity)}
-            </span>
-            {project.activeAgents > 0 && (
-              <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
-                <Bot className="size-3" />
-                {project.activeAgents} agent{project.activeAgents !== 1 ? "s" : ""}
+          <CardFooter className="text-xs text-muted-foreground">
+            <div className="flex w-full items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Clock className="size-3" />
+                {formatRelativeTime(project.lastActivity)}
               </span>
-            )}
-          </div>
-        </CardFooter>
-      </Card>
-    </Link>
+              {project.activeAgents > 0 && (
+                <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
+                  <Bot className="size-3" />
+                  {project.activeAgents} agent{project.activeAgents !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          </CardFooter>
+        </Card>
+      </Link>
+
+      <DeleteProjectDialog
+        projectId={project.id}
+        projectName={project.name}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={onDeleted}
+      />
+    </>
   );
 }
