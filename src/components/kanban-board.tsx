@@ -121,8 +121,20 @@ export function KanbanBoard({
       const activeColumn = findColumnForId(prev, active.id);
       const overColumn = findColumnForId(prev, over.id);
 
-      if (!activeColumn || !overColumn || activeColumn === overColumn) {
+      if (!activeColumn || !overColumn) {
         return prev;
+      }
+
+      if (activeColumn === overColumn) {
+        const items = [...prev[activeColumn]];
+        const oldIndex = items.findIndex((t) => t.id === active.id);
+        const newIndex = items.findIndex((t) => t.id === over.id);
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex)
+          return prev;
+        return {
+          ...prev,
+          [activeColumn]: arrayMove(items, oldIndex, newIndex),
+        };
       }
 
       const activeItems = [...prev[activeColumn]];
