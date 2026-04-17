@@ -12,8 +12,6 @@ set -euo pipefail
 #   --max-tasks N              Maximum number of tasks to process (default: unlimited)
 #   --poll-interval S          Seconds between polling when no tasks available (default: 30)
 #   --session-reset-every N    Reset Claude session after N tasks (default: 5, 0 to disable)
-#   --model MODEL              Claude model to use (e.g. opus, sonnet, claude-opus-4-7). Default: CLI default.
-#   --effort LEVEL             Thinking effort level: low, medium, high, xhigh, max. Default: CLI default.
 #
 # Environment:
 #   THE_STUFF_URL   Server URL (default: http://localhost:3000)
@@ -24,8 +22,6 @@ BASE_BRANCH="main"
 MAX_TASKS=""
 POLL_INTERVAL=30
 SESSION_RESET_EVERY=5
-MODEL=""
-EFFORT=""
 CURRENT_TASK_ID=""
 WORKTREE_DIR=""
 AGENT_ID=""
@@ -37,7 +33,7 @@ SESSION_TASK_COUNT=0
 # --- Argument parsing ------------------------------------------------------
 
 usage() {
-  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH] [--max-tasks N] [--poll-interval SECONDS] [--session-reset-every N] [--model MODEL] [--effort LEVEL]"
+  echo "Usage: the-stuff-worker [project-id] [--server URL] [--base-branch BRANCH] [--max-tasks N] [--poll-interval SECONDS] [--session-reset-every N]"
   echo ""
   echo "If project-id is omitted, you will be prompted to select a project."
   exit 1
@@ -58,8 +54,6 @@ while [[ $# -gt 0 ]]; do
     --max-tasks) MAX_TASKS="$2"; shift 2 ;;
     --poll-interval) POLL_INTERVAL="$2"; shift 2 ;;
     --session-reset-every) SESSION_RESET_EVERY="$2"; shift 2 ;;
-    --model) MODEL="$2"; shift 2 ;;
-    --effort) EFFORT="$2"; shift 2 ;;
     --help|-h) usage ;;
     *) usage ;;
   esac
@@ -200,8 +194,6 @@ if [[ "$SESSION_RESET_EVERY" -gt 0 ]]; then
 else
   echo "[worker] Session reset: disabled (single session for entire worker run)"
 fi
-echo "[worker] Model: ${MODEL:-<claude default>}"
-echo "[worker] Effort: ${EFFORT:-<claude default>}"
 
 # Create a single persistent worktree for this worker. All tasks run in this
 # same directory (branch-switched between tasks). This keeps Claude's cwd
@@ -438,11 +430,6 @@ PROMPT_EOF
     echo "[worker] Resuming Claude session: $SESSION_ID (task $((SESSION_TASK_COUNT + 1)) of $SESSION_RESET_EVERY in this session)"
   fi
 
-  # Build Claude CLI flags for model/effort (only if set)
-  MODEL_FLAGS=()
-  [[ -n "$MODEL" ]] && MODEL_FLAGS+=(--model "$MODEL")
-  [[ -n "$EFFORT" ]] && MODEL_FLAGS+=(--effort "$EFFORT")
-
   # 7. Run Claude Code inside the worktree (with streaming status output)
   # The worktree path is stable across tasks, so sessions can be resumed.
   set +e
@@ -450,15 +437,13 @@ PROMPT_EOF
     cd "$WORKTREE_DIR"
     claude -p "$PROMPT" --dangerously-skip-permissions \
       "${SESSION_FLAGS[@]}" \
-      "${MODEL_FLAGS[@]}" \
       --verbose --output-format stream-json | \
-      jq -r --unbuffered --arg effort "${EFFORT:-<default>}" '
+      jq -r --unbuffered '
         def truncate(n): if length > n then .[:n] + "…" else . end;
         def basename: split("/") | last;
-        if .type == "system" and (.subtype // "") == "init" then
-          "[claude] Session started — model=\(.model // "?") effort=\($effort)"
+        if .type == "system" and (.subtype // empty) == "" then
+          "[claude] Session started"
         elif .type == "assistant" then
-          [.message.content[]? | select(.type == "thinking") | "[claude] (thinking)"] +
           [.message.content[]? | select(.type == "text") | .text |
             split("\n") | map(select(length > 0)) | first // empty |
             truncate(100) |
@@ -480,7 +465,7 @@ PROMPT_EOF
             end
           ] | .[]? // empty
         elif .type == "result" then
-          "[claude] Done — model=\(.model // "?") \(.num_turns // "?") turns, $\(.total_cost_usd // "?")"
+          "[claude] Done — \(.num_turns // "?") turns, $\(.total_cost_usd // "?")"
         else empty end
       ' 2>/dev/null
   )
