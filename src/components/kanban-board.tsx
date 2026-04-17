@@ -183,36 +183,25 @@ export function KanbanBoard({
         destStatus = col;
       }
 
+      // Read the final position from the visual columns state maintained
+      // by handleDragOver. Re-deriving from the `tasks` prop here ignores
+      // the drag preview and lands same-column moves one slot off.
+      const destTasks = columns[destStatus] ?? [];
+      const movedIndex = destTasks.findIndex((t) => t.id === Number(active.id));
+
       if (sourceStatus === destStatus) {
-        // Same column reorder
-        if (active.id === over.id) return;
-        const grouped = groupByStatus(tasks);
-        const columnTasks = grouped[sourceStatus];
-        if (!columnTasks) return;
-        const oldIndex = columnTasks.findIndex((t) => t.id === active.id);
-        const newIndex = columnTasks.findIndex((t) => t.id === over.id);
-        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-
-        const reordered = arrayMove(columnTasks, oldIndex, newIndex);
-        const movedIndex = reordered.findIndex((t) => t.id === active.id);
-        const neighbors = getNeighborIds(reordered, movedIndex);
-
+        if (active.id === over.id || movedIndex === -1) return;
+        const neighbors = getNeighborIds(destTasks, movedIndex);
         onReorder(Number(active.id), neighbors.previousTaskId, neighbors.nextTaskId);
+      } else if (movedIndex !== -1) {
+        const neighbors = getNeighborIds(destTasks, movedIndex);
+        onStatusChange(Number(active.id), destStatus, neighbors.previousTaskId, neighbors.nextTaskId);
       } else {
-        // Cross-column move — use visual columns state to get exact position
-        const destTasks = columns[destStatus] ?? [];
-        const movedIndex = destTasks.findIndex((t) => t.id === Number(active.id));
-
-        if (movedIndex !== -1) {
-          const neighbors = getNeighborIds(destTasks, movedIndex);
-          onStatusChange(Number(active.id), destStatus, neighbors.previousTaskId, neighbors.nextTaskId);
-        } else {
-          // Task not found in visual state — drop at end
-          onStatusChange(Number(active.id), destStatus, null, null);
-        }
+        // Task not found in visual state — drop at end
+        onStatusChange(Number(active.id), destStatus, null, null);
       }
     },
-    [tasks, columns, onReorder, onStatusChange, onDragEndProp]
+    [columns, onReorder, onStatusChange, onDragEndProp]
   );
 
   const handleDragCancel = useCallback(() => {
