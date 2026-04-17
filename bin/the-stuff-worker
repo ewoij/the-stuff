@@ -385,11 +385,13 @@ Decide whether this task requires **implementation** or **research**:
 2. Implement the changes
 3. Commit and push: git add <files> && git commit -m "<message>" && git push -u origin $BRANCH_NAME
 4. Create a PR (or push to existing): gh pr create --base $BASE_BRANCH --title "<title>" --body "<description>"
-   The PR body MUST end with this footer (verbatim, separated from the rest by a blank line and a horizontal rule), so we can audit which model/effort produced the change:
+   End the PR body with a footer (separated from the rest by a blank line and a horizontal rule) listing the model and thinking effort you used for this run, so we can audit later which model+effort produced the change. For example:
 
    ---
-   - Model: ${MODEL:-<claude default>}
-   - Thinking effort: ${EFFORT:-<claude default>}
+   - Model: claude-opus-4-7
+   - Thinking effort: high
+
+   Use whatever values you actually know about your own session; if you genuinely cannot determine one of them, write "unknown".
 5. Call complete-task with the branch name and PR URL
 
 ### Research mode (investigation only, no code changes)
