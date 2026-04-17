@@ -121,20 +121,11 @@ export function KanbanBoard({
       const activeColumn = findColumnForId(prev, active.id);
       const overColumn = findColumnForId(prev, over.id);
 
-      if (!activeColumn || !overColumn) {
+      // Same-column preview is handled by dnd-kit's verticalListSortingStrategy
+      // (transforms items in place). Mutating columns here would drift the state
+      // as the DOM rearranges and causes overId to flip between items.
+      if (!activeColumn || !overColumn || activeColumn === overColumn) {
         return prev;
-      }
-
-      if (activeColumn === overColumn) {
-        const items = [...prev[activeColumn]];
-        const oldIndex = items.findIndex((t) => t.id === active.id);
-        const newIndex = items.findIndex((t) => t.id === over.id);
-        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex)
-          return prev;
-        return {
-          ...prev,
-          [activeColumn]: arrayMove(items, oldIndex, newIndex),
-        };
       }
 
       const activeItems = [...prev[activeColumn]];
@@ -183,25 +174,34 @@ export function KanbanBoard({
         destStatus = col;
       }
 
-      // Read the final position from the visual columns state maintained
-      // by handleDragOver. Re-deriving from the `tasks` prop here ignores
-      // the drag preview and lands same-column moves one slot off.
-      const destTasks = columns[destStatus] ?? [];
-      const movedIndex = destTasks.findIndex((t) => t.id === Number(active.id));
-
       if (sourceStatus === destStatus) {
-        if (active.id === over.id || movedIndex === -1) return;
-        const neighbors = getNeighborIds(destTasks, movedIndex);
+        // Same-column: derive the final order from canonical `tasks` + `over.id`.
+        // The visual preview came from the sortable strategy over the same data,
+        // so arrayMove here matches what the user saw at drop time.
+        if (active.id === over.id) return;
+        const columnTasks = groupByStatus(tasks)[sourceStatus];
+        if (!columnTasks) return;
+        const oldIndex = columnTasks.findIndex((t) => t.id === active.id);
+        const newIndex = columnTasks.findIndex((t) => t.id === over.id);
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+        const reordered = arrayMove(columnTasks, oldIndex, newIndex);
+        const movedIndex = reordered.findIndex((t) => t.id === active.id);
+        const neighbors = getNeighborIds(reordered, movedIndex);
         onReorder(Number(active.id), neighbors.previousTaskId, neighbors.nextTaskId);
-      } else if (movedIndex !== -1) {
-        const neighbors = getNeighborIds(destTasks, movedIndex);
-        onStatusChange(Number(active.id), destStatus, neighbors.previousTaskId, neighbors.nextTaskId);
       } else {
-        // Task not found in visual state — drop at end
-        onStatusChange(Number(active.id), destStatus, null, null);
+        // Cross-column: use the visual columns state maintained by handleDragOver
+        // to get the exact drop position.
+        const destTasks = columns[destStatus] ?? [];
+        const movedIndex = destTasks.findIndex((t) => t.id === Number(active.id));
+        if (movedIndex !== -1) {
+          const neighbors = getNeighborIds(destTasks, movedIndex);
+          onStatusChange(Number(active.id), destStatus, neighbors.previousTaskId, neighbors.nextTaskId);
+        } else {
+          onStatusChange(Number(active.id), destStatus, null, null);
+        }
       }
     },
-    [columns, onReorder, onStatusChange, onDragEndProp]
+    [tasks, columns, onReorder, onStatusChange, onDragEndProp]
   );
 
   const handleDragCancel = useCallback(() => {
